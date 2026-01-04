@@ -2,15 +2,16 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface HeaderProps {
   syncStatus: 'synced' | 'syncing' | 'offline';
+  groupName?: string;
 }
 
-export function Header({ syncStatus }: HeaderProps) {
+export function Header({ syncStatus, groupName }: HeaderProps) {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <View>
           <Text style={styles.title}>Đi Chợ Tiện Lợi</Text>
-          <Text style={styles.subtitle}>Gia đình Nguyễn</Text>
+          {groupName && <Text style={styles.subtitle}>{groupName}</Text>}
         </View>
         <View style={styles.rightSection}>
           {/* Sync Status Indicator */}

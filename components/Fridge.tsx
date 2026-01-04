@@ -1,68 +1,155 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { fridgeService, FridgeItem } from '../services/fridge.service';
+import { AddToFridgeModal } from './AddToFridgeModal';
+
+import { foodService } from '../services/food.service';
 
 export function Fridge() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchText, setSearchText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<FridgeItem[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const categories = [
-    { id: 'all', label: 'Tất cả', icon: '🏪' },
-    { id: 'vegetables', label: 'Rau củ', icon: '🥬' },
-    { id: 'meat', label: 'Thịt', icon: '🥩' },
-    { id: 'dairy', label: 'Sữa', icon: '🥛' },
-    { id: 'frozen', label: 'Đông lạnh', icon: '❄️' },
-  ];
+  // Categories state
+  const [categories, setCategories] = useState<{ id: string; label: string; icon: string }[]>([
+    { id: 'all', label: 'Tất cả', icon: '🏪' }
+  ]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const items = [
-    {
-      id: 1,
-      name: 'Sữa tươi',
-      category: 'dairy',
-      quantity: '2 hộp',
-      expiry: '2 ngày',
-      status: 'expiring',
-      image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=200&h=200&fit=crop',
-    },
-    {
-      id: 2,
-      name: 'Cà rót',
-      category: 'vegetables',
-      quantity: '5 quả',
-      expiry: '3 ngày',
-      status: 'expiring',
-      image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=200&h=200&fit=crop',
-    },
-    {
-      id: 3,
-      name: 'Thịt bò',
-      category: 'meat',
-      quantity: '500g',
-      expiry: '7 ngày',
-      status: 'fresh',
-      image: 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?w=200&h=200&fit=crop',
-    },
-    {
-      id: 4,
-      name: 'Cải bó xôi',
-      category: 'vegetables',
-      quantity: '1 bó',
-      expiry: '10 ngày',
-      status: 'fresh',
-      image: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=200&h=200&fit=crop',
-    },
-  ];
+  // Load data when component mount
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const getStatusStyle = (status: string) => {
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      await Promise.all([
+        loadFridgeItems(),
+        loadCategories()
+      ]);
+    } catch (error) {
+      console.error('Initial load error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const cats = await foodService.getAllCategories();
+      const mappedCats = cats.map(c => ({
+        id: c._id,
+        label: c.name,
+        icon: getCategoryIcon(c.name)
+      }));
+      setCategories([{ id: 'all', label: 'Tất cả', icon: '🏪' }, ...mappedCats]);
+    } catch (error) {
+      console.error('Load categories error:', error);
+    }
+  };
+
+  const getCategoryIcon = (name: string): string => {
+    const lower = name.toLowerCase();
+    if (lower.includes('rau') || lower.includes('củ') || lower.includes('quả')) return '🥬';
+    if (lower.includes('thịt')) return '🥩';
+    if (lower.includes('cá') || lower.includes('hải sản')) return '🐟';
+    if (lower.includes('sữa') || lower.includes('trứng')) return '🥛';
+    if (lower.includes('đông lạnh')) return '❄️';
+    if (lower.includes('đồ khô') || lower.includes('gia vị')) return '🧂';
+    if (lower.includes('đồ uống')) return '🥤';
+    if (lower.includes('bánh')) return '🍪';
+    return '📦';
+  };
+
+  const loadFridgeItems = async () => {
+    try {
+      const fridgeItems = await fridgeService.getFridgeItems();
+      setItems(fridgeItems);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tải danh sách tủ lạnh');
+      console.error('Load fridge items error:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await loadFridgeItems();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tải lại danh sách');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleAddFridgeItem = async (data: any) => {
+    try {
+      await fridgeService.createFridgeItem({
+        foodName: data.foodName,
+        quantity: data.quantity,
+        expiredAt: data.expiredAt,
+      });
+      // Reload list to get populated data
+      await loadFridgeItems();
+      setShowAddModal(false);
+      Alert.alert('Thành công', 'Đã thêm vào tủ lạnh');
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào tủ');
+      console.error('Add fridge item error:', error);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    Alert.alert('Xác nhận', 'Bạn chắc chắn muốn xóa?', [
+      { text: 'Hủy', onPress: () => { }, style: 'cancel' },
+      {
+        text: 'Xóa',
+        onPress: async () => {
+          try {
+            await fridgeService.deleteFridgeItem(itemId);
+            setItems(items.filter((item) => item._id !== itemId));
+            Alert.alert('Thành công', 'Đã xóa khỏi tủ');
+          } catch (error: any) {
+            Alert.alert('Lỗi', error.response?.data?.message || 'Không thể xóa');
+          }
+        },
+        style: 'destructive',
+      },
+    ]);
+  };
+
+  const getStatusStyle = (expiryDate: string) => {
+    const status = fridgeService.getItemStatus(expiryDate);
     switch (status) {
       case 'fresh':
         return styles.statusFresh;
       case 'expiring':
         return styles.statusExpiring;
+      case 'expired':
+        return styles.statusExpired;
       default:
         return styles.statusDefault;
     }
   };
+
+  // Filter items
+  const filteredItems = items.filter((item) => {
+    const foodName = typeof item.foodId === 'object' ? item.foodId?.name : '';
+    const categoryId = typeof item.foodId === 'object' ? item.foodId?.categoryId : '';
+
+    // Filter by search
+    const matchesSearch = foodName.toLowerCase().includes(searchText.toLowerCase());
+
+    // Filter by category
+    const matchesCategory = selectedCategory === 'all' || categoryId === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <View style={styles.container}>
@@ -75,19 +162,21 @@ export function Fridge() {
               style={styles.searchInput}
               placeholder="Tìm kiếm trong tủ lạnh..."
               placeholderTextColor="#9CA3AF"
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
           <TouchableOpacity style={styles.filterButton}>
             <Ionicons name="funnel-outline" size={20} color="#4B5563" />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.viewModeButton}
             onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
           >
-            <Ionicons 
-              name={viewMode === 'grid' ? 'list' : 'grid-outline'} 
-              size={20} 
-              color="#4B5563" 
+            <Ionicons
+              name={viewMode === 'grid' ? 'list' : 'grid-outline'}
+              size={20}
+              color="#4B5563"
             />
           </TouchableOpacity>
         </View>
@@ -97,63 +186,117 @@ export function Fridge() {
           {categories.map((category) => (
             <TouchableOpacity
               key={category.id}
-              onPress={() => setActiveCategory(category.id)}
               style={[
                 styles.categoryChip,
-                activeCategory === category.id && styles.categoryChipActive
+                selectedCategory === category.id && styles.categoryChipActive
               ]}
+              onPress={() => setSelectedCategory(category.id)}
             >
               <Text style={styles.categoryIcon}>{category.icon}</Text>
               <Text style={[
                 styles.categoryLabel,
-                activeCategory === category.id && styles.categoryLabelActive
-              ]}>
-                {category.label}
-              </Text>
+                selectedCategory === category.id && styles.categoryLabelActive
+              ]}>{category.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      {/* Items Grid/List */}
-      <ScrollView style={styles.itemsContainer}>
-        {viewMode === 'grid' ? (
-          <View style={styles.gridContainer}>
-            {items.map((item) => (
-              <View key={item.id} style={styles.gridItem}>
-                <Image source={{ uri: item.image }} style={styles.gridItemImage} />
-                <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
-                  <Text style={styles.statusText}>{item.expiry}</Text>
-                </View>
-                <View style={styles.gridItemInfo}>
-                  <Text style={styles.gridItemName}>{item.name}</Text>
-                  <Text style={styles.gridItemQuantity}>{item.quantity}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.listContainer}>
-            {items.map((item) => (
-              <View key={item.id} style={styles.listItem}>
-                <Image source={{ uri: item.image }} style={styles.listItemImage} />
-                <View style={styles.listItemInfo}>
-                  <Text style={styles.listItemName}>{item.name}</Text>
-                  <Text style={styles.listItemQuantity}>{item.quantity}</Text>
-                </View>
-                <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
-                  <Text style={styles.statusText}>{item.expiry}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+      {/* Loading State */}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#16A34A" />
+          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+        </View>
+      ) : filteredItems.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="cube-outline" size={64} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>Tủ lạnh trống</Text>
+          <Text style={styles.emptyText}>Thêm đồ vào tủ để bắt đầu</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.itemsContainer}
+          onScroll={({ nativeEvent }) => {
+            // Có thể thêm pull-to-refresh logic ở đây
+          }}
+          scrollEventThrottle={16}
+        >
+          {viewMode === 'grid' ? (
+            <View style={styles.gridContainer}>
+              {filteredItems.map((item) => (
+                <TouchableOpacity
+                  key={item._id}
+                  style={styles.gridItem}
+                  onLongPress={() => handleDeleteItem(item._id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.gridItemImageContainer}>
+                    <Text style={styles.foodEmoji}>🥬</Text>
+                  </View>
+                  <View style={[styles.statusBadge, getStatusStyle(item.expiredAt)]}>
+                    <Text style={styles.statusText}>
+                      {fridgeService.formatExpiryDisplay(item.expiredAt)}
+                    </Text>
+                  </View>
+                  <View style={styles.gridItemInfo}>
+                    <Text style={styles.gridItemName} numberOfLines={2}>
+                      {typeof item.foodId === 'object' ? item.foodId?.name : 'Loading...'}
+                    </Text>
+                    <Text style={styles.gridItemQuantity}>
+                      {item.quantity} {typeof item.unitId === 'object' ? item.unitId?.name : ''}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.listContainer}>
+              {filteredItems.map((item) => (
+                <TouchableOpacity
+                  key={item._id}
+                  style={styles.listItem}
+                  onLongPress={() => handleDeleteItem(item._id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.listItemImageContainer}>
+                    <Text style={styles.foodEmojiLarge}>🥬</Text>
+                  </View>
+                  <View style={styles.listItemInfo}>
+                    <Text style={styles.listItemName}>
+                      {typeof item.foodId === 'object' ? item.foodId?.name : 'Loading...'}
+                    </Text>
+                    <Text style={styles.listItemQuantity}>
+                      {item.quantity} {typeof item.unitId === 'object' ? item.unitId?.name : ''}
+                    </Text>
+                  </View>
+                  <View style={[styles.statusBadge, getStatusStyle(item.expiredAt)]}>
+                    <Text style={styles.statusText}>
+                      {fridgeService.formatExpiryDisplay(item.expiredAt)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.8}
+      >
         <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
+
+      {/* Add to Fridge Modal */}
+      <AddToFridgeModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleAddFridgeItem}
+      />
     </View>
   );
 }
@@ -222,9 +365,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 20,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   categoryChipActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#D1FAE5',
+    borderColor: '#16A34A',
   },
   categoryIcon: {
     fontSize: 16,
@@ -235,7 +381,33 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   categoryLabelActive: {
-    color: '#FFFFFF',
+    color: '#16A34A',
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   itemsContainer: {
     flex: 1,
@@ -254,9 +426,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  gridItemImage: {
+  gridItemImageContainer: {
     width: '100%',
     aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  foodEmoji: {
+    fontSize: 48,
   },
   statusBadge: {
     position: 'absolute',
@@ -274,6 +452,10 @@ const styles = StyleSheet.create({
   statusExpiring: {
     backgroundColor: '#FED7AA',
     borderColor: '#FDBA74',
+  },
+  statusExpired: {
+    backgroundColor: '#FECACA',
+    borderColor: '#FCA5A5',
   },
   statusDefault: {
     backgroundColor: '#F3F4F6',
@@ -311,10 +493,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  listItemImage: {
+  listItemImageContainer: {
     width: 64,
     height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
+  },
+  foodEmojiLarge: {
+    fontSize: 36,
   },
   listItemInfo: {
     flex: 1,

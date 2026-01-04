@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Share } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Share, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useGroup } from '../context/GroupContext';
 
 interface InviteMemberModalProps {
   isOpen: boolean;
@@ -9,9 +10,14 @@ interface InviteMemberModalProps {
 }
 
 export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
+  const { addMember, group } = useGroup();
   const [copied, setCopied] = useState(false);
-  const inviteCode = 'GIA-DINH-123';
-  const groupName = 'Gia đình Nguyễn';
+  const [userId, setUserId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Tạm thời dùng invite code (có thể implement sau)
+  const inviteCode = group?._id?.substring(0, 8).toUpperCase() || 'GROUP-CODE';
+  const groupName = group?.name || 'Nhóm của bạn';
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(inviteCode);
@@ -26,6 +32,25 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
       });
     } catch (error) {
       console.log('Share error:', error);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!userId.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập User ID');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await addMember(userId.trim());
+      Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
+      setUserId('');
+      onClose();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.message || 'Không thể thêm thành viên');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,6 +88,36 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
             <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
               <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
               <Text style={styles.shareButtonText}>Chia sẻ mã mời</Text>
+            </TouchableOpacity>
+
+            {/* Hoặc thêm trực tiếp bằng User ID */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>hoặc</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Text style={styles.label}>Thêm bằng User ID</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nhập User ID của thành viên"
+              value={userId}
+              onChangeText={setUserId}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={[styles.addButton, isLoading && styles.addButtonDisabled]}
+              onPress={handleAddMember}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.addButtonText}>Thêm thành viên</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -168,5 +223,45 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  addButtonDisabled: {
+    opacity: 0.6,
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

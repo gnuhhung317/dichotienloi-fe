@@ -1,20 +1,82 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { InviteMemberModal } from './InviteMemberModal';
+import { CreateGroupModal } from './CreateGroupModal';
+import { EditProfileModal } from './EditProfileModal';
+import { useAuth } from '../context/AuthContext';
+import { useGroup } from '../context/GroupContext';
 
 interface ProfileProps {
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 export function Profile({ onLogout }: ProfileProps) {
+  const { user, logout, isLoading: authLoading } = useAuth();
+  const { group, members, hasGroup, isOwner, isLoading: groupLoading, removeMember } = useGroup();
   const [showInviteModal, setShowInviteModal] = useState(false);
-  
-  const familyMembers = [
-    { id: 1, name: 'Minh Nguyễn', role: 'Admin', avatar: '👨' },
-    { id: 2, name: 'Lan Trần', role: 'Member', avatar: '👩' },
-    { id: 3, name: 'Hùng Lê', role: 'Member', avatar: '👦' },
-  ];
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất?',
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              onLogout?.();
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRemoveMember = (userId: string, memberName: string) => {
+    if (!isOwner) {
+      Alert.alert('Lỗi', 'Chỉ chủ nhóm mới có thể xóa thành viên');
+      return;
+    }
+
+    Alert.alert(
+      'Xóa thành viên',
+      `Bạn có chắc chắn muốn xóa ${memberName} khỏi nhóm?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeMember(userId);
+              Alert.alert('Thành công', 'Đã xóa thành viên khỏi nhóm');
+            } catch (error: any) {
+              Alert.alert('Lỗi', error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (authLoading || groupLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#16A34A" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -22,64 +84,113 @@ export function Profile({ onLogout }: ProfileProps) {
         {/* Profile Header */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>👨</Text>
+            <Text style={styles.avatarEmoji}>
+              {user?.name?.charAt(0).toUpperCase() || '👨'}
+            </Text>
           </View>
-          <Text style={styles.userName}>Minh Nguyễn</Text>
-          <Text style={styles.userEmail}>minh@example.com</Text>
+          <Text style={styles.userName}>{user?.name || 'User'}</Text>
+          <Text style={styles.userEmail}>{user?.email || 'email@example.com'}</Text>
+          {user?.role && (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>{user.role}</Text>
+            </View>
+          )}
+          
+          {/* Edit Profile Button */}
+          <TouchableOpacity
+            style={styles.editProfileButton}
+            onPress={() => setShowEditProfileModal(true)}
+          >
+            <Ionicons name="create-outline" size={16} color="#16A34A" />
+            <Text style={styles.editProfileText}>Chỉnh sửa</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Family Group */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Nhóm gia đình</Text>
-            <TouchableOpacity 
-              style={styles.inviteButton}
-              onPress={() => setShowInviteModal(true)}
-            >
-              <Ionicons name="person-add-outline" size={16} color="#16A34A" />
-              <Text style={styles.inviteText}>Mời</Text>
-            </TouchableOpacity>
+            {hasGroup && (
+              <TouchableOpacity 
+                style={styles.inviteButton}
+                onPress={() => setShowInviteModal(true)}
+              >
+                <Ionicons name="person-add-outline" size={16} color="#16A34A" />
+                <Text style={styles.inviteText}>Mời</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <View style={styles.card}>
-            {/* Group Info */}
-            <View style={styles.groupInfo}>
-              <View style={styles.groupRow}>
-                <View style={styles.groupIconContainer}>
-                  <Ionicons name="people" size={20} color="#16A34A" />
-                </View>
-                <View style={styles.groupDetails}>
-                  <Text style={styles.groupName}>Gia đình Nguyễn</Text>
-                  <Text style={styles.groupMembers}>{familyMembers.length} thành viên</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          {!hasGroup ? (
+            <View style={styles.card}>
+              <View style={styles.noGroupContainer}>
+                <Ionicons name="people-outline" size={48} color="#9CA3AF" />
+                <Text style={styles.noGroupTitle}>Chưa có nhóm</Text>
+                <Text style={styles.noGroupText}>
+                  Tạo nhóm để chia sẻ tủ lạnh và danh sách mua sắm với gia đình
+                </Text>
+                <TouchableOpacity
+                  style={styles.createGroupButton}
+                  onPress={() => setShowCreateGroupModal(true)}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.createGroupText}>Tạo nhóm mới</Text>
+                </TouchableOpacity>
               </View>
             </View>
-
-            {/* Members List */}
-            {familyMembers.map((member, index) => (
-              <View 
-                key={member.id}
-                style={[
-                  styles.memberRow,
-                  index < familyMembers.length - 1 && styles.memberBorder
-                ]}
-              >
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberAvatarText}>{member.avatar}</Text>
-                </View>
-                <View style={styles.memberInfo}>
-                  <Text style={styles.memberName}>{member.name}</Text>
-                  <Text style={styles.memberRole}>{member.role}</Text>
-                </View>
-                {member.role === 'Admin' && (
-                  <View style={styles.adminBadge}>
-                    <Text style={styles.adminBadgeText}>Admin</Text>
+          ) : (
+            <View style={styles.card}>
+              {/* Group Info */}
+              <View style={styles.groupInfo}>
+                <View style={styles.groupRow}>
+                  <View style={styles.groupIconContainer}>
+                    <Ionicons name="people" size={20} color="#16A34A" />
                   </View>
-                )}
+                  <View style={styles.groupDetails}>
+                    <Text style={styles.groupName}>{group?.name || 'Nhóm của bạn'}</Text>
+                    <Text style={styles.groupMembers}>{members.length} thành viên</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
               </View>
-            ))}
-          </View>
+
+              {/* Members List */}
+              {members.map((member, index) => (
+                <View 
+                  key={member._id}
+                  style={[
+                    styles.memberRow,
+                    index < members.length - 1 && styles.memberBorder
+                  ]}
+                >
+                  <View style={styles.memberAvatar}>
+                    <Text style={styles.memberAvatarText}>
+                      {member.user?.name?.charAt(0).toUpperCase() || '👤'}
+                    </Text>
+                  </View>
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName}>{member.user?.name || 'User'}</Text>
+                    <Text style={styles.memberRole}>
+                      {member.role === 'owner' ? 'Chủ nhóm' : 'Thành viên'}
+                    </Text>
+                  </View>
+                  {member.role === 'owner' && (
+                    <View style={styles.adminBadge}>
+                      <Text style={styles.adminBadgeText}>Owner</Text>
+                    </View>
+                  )}
+                  {isOwner && member.role !== 'owner' && (
+                    <TouchableOpacity
+                      onPress={() => handleRemoveMember(member.userId, member.user?.name || 'User')}
+                      style={styles.removeButton}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#DC2626" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Settings */}
@@ -172,7 +283,7 @@ export function Profile({ onLogout }: ProfileProps) {
         {/* Logout Button */}
         <TouchableOpacity 
           style={styles.logoutButton}
-          onPress={onLogout}
+          onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#DC2626" />
           <Text style={styles.logoutText}>Đăng xuất</Text>
@@ -186,6 +297,24 @@ export function Profile({ onLogout }: ProfileProps) {
           onClose={() => setShowInviteModal(false)} 
         />
       )}
+
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          onSuccess={() => setShowCreateGroupModal(false)}
+        />
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditProfileModal && (
+        <EditProfileModal
+          isOpen={showEditProfileModal}
+          onClose={() => setShowEditProfileModal(false)}
+          onSuccess={() => setShowEditProfileModal(false)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -194,6 +323,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     padding: 24,
@@ -223,6 +356,36 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  roleBadge: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#DBEAFE',
+    borderRadius: 12,
+  },
+  roleBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1D4ED8',
+    textTransform: 'capitalize',
+  },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  editProfileText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#16A34A',
   },
   section: {
     marginBottom: 24,
@@ -444,5 +607,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  noGroupContainer: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  noGroupTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noGroupText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  createGroupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#16A34A',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  createGroupText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  removeButton: {
+    padding: 4,
   },
 });

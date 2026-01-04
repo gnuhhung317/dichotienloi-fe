@@ -1,18 +1,95 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { AddToFridgeModal } from './AddToFridgeModal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { CreateCustomItemModal } from './CreateCustomItemModal';
 import { InviteMemberModal } from './InviteMemberModal';
 
+import { shoppingService, ShoppingItem } from '../services/shopping.service';
+import { fridgeService, FridgeItem } from '../services/fridge.service';
+import { mealService, MealPlanItem } from '../services/meal.service';
+
 type ActiveModal = 'addFridge' | 'scanner' | 'customItem' | 'invite' | null;
 
 export function Home() {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Data State
+  const [shoppingCount, setShoppingCount] = useState(0);
+  const [totalShoppingItems, setTotalShoppingItems] = useState(0); // For progress bar
+  const [expiringItems, setExpiringItems] = useState<FridgeItem[]>([]);
+  const [todayMeal, setTodayMeal] = useState<MealPlanItem | null>(null);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+
+      // 1. Fetch Shopping List
+      const shoppingItems = await shoppingService.getShoppingItems();
+      const unbought = shoppingService.getUnboughtCount(shoppingItems);
+      setShoppingCount(unbought);
+      setTotalShoppingItems(shoppingItems.length);
+
+      // 2. Fetch Fridge Items & Filter Expiring (next 3 days)
+      const fridgeItems = await fridgeService.getFridgeItems();
+      const expiring = fridgeItems.filter(item => {
+        const days = fridgeService.calculateDaysUntilExpiry(item.expiredAt);
+        return days <= 3 && item.status === 'available'; // Expiring soon or expired
+      }).sort((a, b) => new Date(a.expiredAt).getTime() - new Date(b.expiredAt).getTime());
+
+      setExpiringItems(expiring.slice(0, 3)); // Top 3 expiring
+
+      // 3. Fetch Today's Meal (Dinner priority, then Lunch, then Breakfast)
+      const today = new Date();
+      const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+      const weeklyPlan = await mealService.getWeeklyPlan(startOfDay, endOfDay);
+
+      // Find meal for today. Prioritize Dinner -> Lunch -> Breakfast if currently empty state?
+      // Actually, let's just pick the next upcoming meal or just Dinner if available.
+      // Logic: If it's morning, show Breakfast/Lunch. If evening, show Dinner.
+      // For simplicity: Find the first meal of today (sorted by type usually fixed order in UI, but here list).
+      // Let's look for Dinner first as "Main Event", else Lunch.
+      const dinner = weeklyPlan.find(m => m.mealType === 'dinner');
+      const lunch = weeklyPlan.find(m => m.mealType === 'lunch');
+      const breakfast = weeklyPlan.find(m => m.mealType === 'breakfast');
+
+      setTodayMeal(dinner || lunch || breakfast || null);
+
+    } catch (error) {
+      console.error('Home load data error:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  // Helper for progress
+  const shoppingProgress = totalShoppingItems > 0
+    ? Math.round(((totalShoppingItems - shoppingCount) / totalShoppingItems) * 100)
+    : 0;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#16A34A']} />}
+    >
       <View style={styles.content}>
         {/* Greeting */}
         <View style={styles.greeting}>
@@ -31,16 +108,18 @@ export function Home() {
                 </View>
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardTitle}>Danh sách mua sắm</Text>
-                  <Text style={styles.cardSubtitle}>5 món cần mua</Text>
+                  <Text style={styles.cardSubtitle}>
+                    {shoppingCount > 0 ? `${shoppingCount} món cần mua` : 'Đã mua đủ'}
+                  </Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
             <View style={styles.progressRow}>
               <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '60%' }]} />
+                <View style={[styles.progressFill, { width: `${shoppingProgress}%` }]} />
               </View>
-              <Text style={styles.progressText}>60%</Text>
+              <Text style={styles.progressText}>{shoppingProgress}%</Text>
             </View>
           </TouchableOpacity>
 
@@ -53,21 +132,33 @@ export function Home() {
                 </View>
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardTitle}>Cảnh báo tủ lạnh</Text>
-                  <Text style={styles.alertText}>3 món sắp hết hạn</Text>
+                  <Text style={styles.alertText}>
+                    {expiringItems.length > 0
+                      ? `${expiringItems.length} món sắp hết hạn`
+                      : 'Tủ lạnh an toàn'}
+                  </Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
-            <View style={styles.alertItems}>
-              <View style={styles.alertItem}>
-                <Ionicons name="time-outline" size={16} color="#EA580C" />
-                <Text style={styles.alertItemText}>Sữa tươi - Hết hạn trong 2 ngày</Text>
+
+            {expiringItems.length > 0 && (
+              <View style={styles.alertItems}>
+                {expiringItems.map(item => {
+                  const days = fridgeService.calculateDaysUntilExpiry(item.expiredAt);
+                  const label = days < 0 ? 'Đã hết hạn' : days === 0 ? 'Hết hạn hôm nay' : `${days} ngày nữa`;
+                  const foodName = typeof item.foodId === 'string' ? 'Món ăn' : item.foodId.name;
+                  return (
+                    <View key={item._id} style={styles.alertItem}>
+                      <Ionicons name="time-outline" size={16} color="#EA580C" />
+                      <Text style={styles.alertItemText} numberOfLines={1}>
+                        {foodName} - {label}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
-              <View style={styles.alertItem}>
-                <Ionicons name="time-outline" size={16} color="#EA580C" />
-                <Text style={styles.alertItemText}>Cà rót - Hết hạn trong 3 ngày</Text>
-              </View>
-            </View>
+            )}
           </TouchableOpacity>
 
           {/* Today's Meal Card */}
@@ -78,26 +169,37 @@ export function Home() {
                   <Text style={styles.cardEmoji}>🍽️</Text>
                 </View>
                 <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle}>Bữa tối hôm nay</Text>
-                  <Text style={styles.cardSubtitle}>Đã lên kế hoạch</Text>
+                  <Text style={styles.cardTitle}>Thực đơn hôm nay</Text>
+                  <Text style={styles.cardSubtitle}>
+                    {todayMeal ? 'Đã lên kế hoạch' : 'Chưa có kế hoạch'}
+                  </Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
-            <View style={styles.mealRow}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop' }}
-                style={styles.mealImage}
-              />
-              <View style={styles.mealInfo}>
-                <Text style={styles.mealName}>Salad rau củ nướng</Text>
-                <View style={styles.mealMeta}>
-                  <Text style={styles.mealMetaText}>35 phút</Text>
-                  <Text style={styles.mealMetaText}>•</Text>
-                  <Text style={styles.mealMetaText}>4 người</Text>
+
+            {todayMeal ? (
+              <View style={styles.mealRow}>
+                <Image
+                  source={{ uri: todayMeal.recipeId.image || 'https://via.placeholder.com/150' }}
+                  style={styles.mealImage}
+                />
+                <View style={styles.mealInfo}>
+                  <Text style={styles.mealName}>{todayMeal.recipeId.name}</Text>
+                  <View style={styles.mealMeta}>
+                    <Text style={styles.mealMetaText}>
+                      {todayMeal.mealType === 'dinner' ? 'Bữa tối' : todayMeal.mealType === 'lunch' ? 'Bữa trưa' : 'Bữa sáng'}
+                    </Text>
+                    <Text style={styles.mealMetaText}>•</Text>
+                    <Text style={styles.mealMetaText}>{todayMeal.recipeId.description || 'Món ngon mỗi ngày'}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : (
+              <View style={styles.emptyMealState}>
+                <Text style={styles.emptyMealText}>Chưa có món nào cho hôm nay</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -132,45 +234,8 @@ export function Home() {
           </View>
         </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hoạt động gần đây</Text>
-          <View style={styles.activities}>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIcon, styles.activityIconGreen]}>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-              </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityText}>
-                  Lan đã mua <Text style={styles.activityHighlight}>Cà chua</Text>
-                </Text>
-                <Text style={styles.activityTime}>5 phút trước</Text>
-              </View>
-            </View>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIcon, styles.activityIconBlue]}>
-                <Text style={styles.activityEmoji}>➕</Text>
-              </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityText}>
-                  Minh đã thêm <Text style={styles.activityHighlight}>Thịt bò</Text> vào danh sách
-                </Text>
-                <Text style={styles.activityTime}>1 giờ trước</Text>
-              </View>
-            </View>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIcon, styles.activityIconOrange]}>
-                <Ionicons name="alert-circle" size={16} color="#EA580C" />
-              </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityText}>
-                  <Text style={styles.activityHighlight}>Sữa tươi</Text> sắp hết hạn
-                </Text>
-                <Text style={styles.activityTime}>3 giờ trước</Text>
-              </View>
-            </View>
-          </View>
-        </View>
+        {/* Recent Activity - Kept static for now as requested to focus on main cards, but could be dynamic later */}
+        {/* <View style={styles.section}> ... </View> */}
       </View>
 
       {/* Modals */}
@@ -353,6 +418,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
+  emptyMealState: {
+    paddingVertical: 12,
+  },
+  emptyMealText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
   section: {
     marginBottom: 24,
   },
@@ -405,46 +478,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  activities: {
-    gap: 12,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  activityIconGreen: {
-    backgroundColor: '#D1FAE5',
-  },
-  activityIconBlue: {
-    backgroundColor: '#DBEAFE',
-  },
-  activityIconOrange: {
-    backgroundColor: '#FED7AA',
-  },
-  activityEmoji: {
-    fontSize: 14,
-  },
-  activityInfo: {
-    flex: 1,
-  },
-  activityText: {
-    fontSize: 14,
-    color: '#111827',
-    marginBottom: 2,
-  },
-  activityHighlight: {
-    fontWeight: '600',
-  },
-  activityTime: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
+  /* Activity styles removed for now as section is hidden/removed */
 });

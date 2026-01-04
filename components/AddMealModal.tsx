@@ -1,16 +1,64 @@
-import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { recipeService, Recipe } from '../services/recipe.service';
+import { mealService } from '../services/meal.service';
 
 interface AddMealModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mealType?: string;
-  day?: string;
+  mealType: string;
+  date: Date; // Passed as Date object
+  onSuccess?: () => void;
 }
 
-export function AddMealModal({ isOpen, onClose, mealType, day }: AddMealModalProps) {
-  const [mealName, setMealName] = useState('');
+export function AddMealModal({ isOpen, onClose, mealType, date, onSuccess }: AddMealModalProps) {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const mealLabels: Record<string, string> = { 'breakfast': 'Sáng', 'lunch': 'Trưa', 'dinner': 'Tối' };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchRecipes();
+    }
+  }, [isOpen]);
+
+  const fetchRecipes = async () => {
+    try {
+      setIsLoading(true);
+      const data = await recipeService.getRecipes(true);
+      setRecipes(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectRecipe = async (recipe: Recipe) => {
+    try {
+      setIsSubmitting(true);
+      await mealService.addRecipeToMealPlan({
+        recipeId: recipe._id,
+        date: date.toISOString(),
+        mealType: mealType
+      });
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Lỗi', 'Không thể thêm món ăn vào lịch');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const filteredRecipes = recipes.filter(recipe =>
+    recipe.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <Modal
@@ -24,36 +72,62 @@ export function AddMealModal({ isOpen, onClose, mealType, day }: AddMealModalPro
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Thêm món ăn</Text>
-              {mealType && day && (
-                <Text style={styles.subtitle}>{day} - {mealType}</Text>
-              )}
+              <Text style={styles.subtitle}>
+                {date.getDate()}/{date.getMonth() + 1} - {mealLabels[mealType] || mealType}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          
-          <ScrollView style={styles.content}>
-            <Text style={styles.label}>Tên món ăn</Text>
+
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
-              style={styles.input}
-              value={mealName}
-              onChangeText={setMealName}
-              placeholder="Ví dụ: Canh chua cá..."
+              style={styles.searchInput}
+              placeholder="Tìm công thức..."
               placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
-            
-            <TouchableOpacity 
-              style={[styles.submitButton, !mealName.trim() && styles.submitButtonDisabled]}
-              disabled={!mealName.trim()}
-              onPress={() => {
-                console.log('Adding meal:', mealName);
-                onClose();
-              }}
-            >
-              <Text style={styles.submitButtonText}>Thêm món ăn</Text>
-            </TouchableOpacity>
-          </ScrollView>
+          </View>
+
+          {isLoading ? (
+            <View style={styles.centerContent}>
+              <ActivityIndicator color="#16A34A" />
+            </View>
+          ) : (
+            <ScrollView style={styles.content}>
+              {filteredRecipes.length > 0 ? (
+                filteredRecipes.map(recipe => (
+                  <TouchableOpacity
+                    key={recipe._id}
+                    style={styles.recipeItem}
+                    onPress={() => handleSelectRecipe(recipe)}
+                    disabled={isSubmitting}
+                  >
+                    <Image
+                      source={{ uri: recipe.image || 'https://via.placeholder.com/150' }}
+                      style={styles.recipeImage}
+                    />
+                    <View style={styles.recipeInfo}>
+                      <Text style={styles.recipeName}>{recipe.name}</Text>
+                      <Text style={styles.recipeDesc} numberOfLines={1}>{recipe.description}</Text>
+                    </View>
+                    <Ionicons name="add-circle-outline" size={24} color="#16A34A" />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>Chưa có công thức nào. Hãy tạo công thức trước!</Text>
+              )}
+            </ScrollView>
+          )}
+
+          {isSubmitting && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#ffffff" />
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -70,7 +144,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '85%',
+    height: '80%', // Taller modal
+    flex: 0,
   },
   header: {
     flexDirection: 'row',
@@ -90,38 +165,71 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
   },
-  content: {
-    padding: 16,
-  },
-  label: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    margin: 16,
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
     paddingVertical: 12,
     fontSize: 16,
     color: '#111827',
-    marginBottom: 16,
   },
-  submitButton: {
-    backgroundColor: '#16A34A',
-    paddingVertical: 12,
-    borderRadius: 12,
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
   },
-  submitButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+  recipeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  submitButtonText: {
-    color: '#FFFFFF',
+  recipeImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#E5E7EB',
+  },
+  recipeInfo: {
+    flex: 1,
+  },
+  recipeName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 2,
   },
+  recipeDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#6B7280',
+    marginTop: 24,
+    fontSize: 14,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  }
 });

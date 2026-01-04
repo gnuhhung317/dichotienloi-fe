@@ -1,52 +1,99 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AddMealModal } from './AddMealModal';
 import { CookbookView } from './CookbookView';
+import { AddRecipeModal } from './AddRecipeModal';
+import { mealService, MealPlanItem } from '../services/meal.service';
 
 export function MealPlanner() {
   const [currentWeek, setCurrentWeek] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedMeal, setSelectedMeal] = useState<{ day: string; mealType: string } | null>(null);
+  const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<{ date: Date; mealType: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'plan' | 'cookbook'>('plan');
 
-  const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-  const meals = ['Sáng', 'Trưa', 'Tối'];
+  const [weeklyPlan, setWeeklyPlan] = useState<MealPlanItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const mealPlan: Record<string, any> = {
-    'T2-Tối': {
-      name: 'Salad rau củ nướng',
-      time: '35 phút',
-      servings: '4 người',
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop',
-    },
-    'T3-Trưa': {
-      name: 'Phở bò',
-      time: '60 phút',
-      servings: '4 người',
-      image: 'https://images.unsplash.com/photo-1591814468924-caf88d1232e1?w=200&h=200&fit=crop',
-    },
-    'T4-Tối': {
-      name: 'Cơm gà chiên',
-      time: '45 phút',
-      servings: '4 người',
-      image: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=200&h=200&fit=crop',
-    },
-    'T6-Tối': {
-      name: 'Pizza homemade',
-      time: '50 phút',
-      servings: '4 người',
-      image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&h=200&fit=crop',
-    },
+  // Callback to refresh cookbook if needed. For now, CookbookView fetches on mount/focus.
+  // Since we are not unmounting CookbookView when modal opens (it's a modal), we might need to signal update.
+  // But standard React: if CookbookView is in tree, we can Key it or use context.
+  // Simpler: Just rely on simple refresh or pass a "refreshTrigger" prop.
+  const [refreshCookbook, setRefreshCookbook] = useState(0);
+
+  const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const meals = ['breakfast', 'lunch', 'dinner']; // Backend enum keys
+  const mealLabels: Record<string, string> = { 'breakfast': 'Sáng', 'lunch': 'Trưa', 'dinner': 'Tối' };
+
+  useEffect(() => {
+    if (activeTab === 'plan') {
+      loadWeeklyPlan();
+    }
+  }, [currentWeek, activeTab]);
+
+  const getWeekRange = () => {
+    const today = new Date();
+    // Adjust to Monday of current week (assuming week starts Monday)
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1) + (currentWeek * 7);
+
+    const startOfWeek = new Date(today.setDate(diff));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    return { startOfWeek, endOfWeek };
   };
 
   const getDayDate = (dayIndex: number) => {
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay() + 1 + currentWeek * 7);
+    const { startOfWeek } = getWeekRange();
     const date = new Date(startOfWeek);
     date.setDate(date.getDate() + dayIndex);
-    return date.getDate();
+    return date;
+  };
+
+  const loadWeeklyPlan = async () => {
+    try {
+      setIsLoading(true);
+      const { startOfWeek, endOfWeek } = getWeekRange();
+      const data = await mealService.getWeeklyPlan(startOfWeek, endOfWeek);
+      setWeeklyPlan(data);
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể tải lịch ăn');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveMeal = (itemId: string) => {
+    Alert.alert('Xóa món ăn', 'Bạn có chắc muốn xóa món này khỏi thực đơn?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await mealService.removeRecipeFromMealPlan(itemId);
+            setWeeklyPlan(prev => prev.filter(m => m._id !== itemId));
+          } catch (error) {
+            Alert.alert('Lỗi', 'Không thể xóa món ăn');
+          }
+        }
+      }
+    ]);
+  };
+
+  const getPlannedMeal = (dayIndex: number, mealType: string) => {
+    const date = getDayDate(dayIndex);
+    return weeklyPlan.find(item => {
+      const itemDate = new Date(item.date);
+      return itemDate.getDate() === date.getDate() &&
+        itemDate.getMonth() === date.getMonth() &&
+        item.mealType === mealType;
+    });
   };
 
   return (
@@ -64,6 +111,9 @@ export function MealPlanner() {
             </TouchableOpacity>
             <Text style={styles.weekTitle}>
               {currentWeek === 0 ? 'Tuần này' : `Tuần ${currentWeek > 0 ? '+' + currentWeek : currentWeek}`}
+              <Text style={styles.weekDateRange}>
+                {` (${getWeekRange().startOfWeek.getDate()}/${getWeekRange().startOfWeek.getMonth() + 1} - ${getWeekRange().endOfWeek.getDate()}/${getWeekRange().endOfWeek.getMonth() + 1})`}
+              </Text>
             </Text>
             <TouchableOpacity
               onPress={() => setCurrentWeek(currentWeek + 1)}
@@ -71,12 +121,6 @@ export function MealPlanner() {
             >
               <Ionicons name="chevron-forward" size={20} color="#4B5563" />
             </TouchableOpacity>
-          </View>
-        )}
-
-        {activeTab === 'cookbook' && (
-          <View style={styles.cookbookHeader}>
-            <Text style={styles.cookbookTitle}>Sổ tay công thức</Text>
           </View>
         )}
 
@@ -104,14 +148,15 @@ export function MealPlanner() {
         {activeTab === 'plan' && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysRow}>
             {days.map((day, index) => {
-              const isToday = currentWeek === 0 && index === new Date().getDay() - 1;
+              const date = getDayDate(index);
+              const isToday = new Date().toDateString() === date.toDateString();
               return (
                 <TouchableOpacity
                   key={day}
                   style={[styles.dayButton, isToday && styles.dayButtonActive]}
                 >
                   <Text style={[styles.dayLabel, isToday && styles.dayLabelActive]}>{day}</Text>
-                  <Text style={[styles.dayDate, isToday && styles.dayDateActive]}>{getDayDate(index)}</Text>
+                  <Text style={[styles.dayDate, isToday && styles.dayDateActive]}>{date.getDate()}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -121,93 +166,107 @@ export function MealPlanner() {
 
       {/* Content */}
       {activeTab === 'plan' ? (
-        <>
-          {/* Meal Grid */}
-          <ScrollView style={styles.mealGrid}>
-            {days.map((day) => (
-              <View key={day} style={styles.daySection}>
-                <Text style={styles.daySectionTitle}>{day}, {getDayDate(days.indexOf(day))} Tháng 12</Text>
-                <View style={styles.mealsContainer}>
-                  {meals.map((meal) => {
-                    const mealKey = `${day}-${meal}`;
-                    const plannedMeal = mealPlan[mealKey];
+        isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#16A34A" />
+          </View>
+        ) : (
+          <>
+            {/* Meal Grid */}
+            <ScrollView style={styles.mealGrid}>
+              {days.map((day, dayIndex) => (
+                <View key={day} style={styles.daySection}>
+                  <Text style={styles.daySectionTitle}>{day}, {getDayDate(dayIndex).getDate()} Tháng {getDayDate(dayIndex).getMonth() + 1}</Text>
+                  <View style={styles.mealsContainer}>
+                    {meals.map((mealType) => {
+                      const plannedMeal = getPlannedMeal(dayIndex, mealType);
 
-                    return (
-                      <View key={meal} style={styles.mealCard}>
-                        <View style={styles.mealRow}>
-                          <View style={styles.mealTimeLabel}>
-                            <Text style={styles.mealTimeText}>{meal}</Text>
-                          </View>
-                          {plannedMeal ? (
-                            <View style={styles.plannedMeal}>
-                              <Image
-                                source={{ uri: plannedMeal.image }}
-                                style={styles.mealImage}
-                              />
-                              <View style={styles.mealInfo}>
-                                <Text style={styles.mealName}>{plannedMeal.name}</Text>
-                                <View style={styles.mealMeta}>
-                                  <View style={styles.metaItem}>
-                                    <Ionicons name="time-outline" size={12} color="#6B7280" />
-                                    <Text style={styles.metaText}>{plannedMeal.time}</Text>
-                                  </View>
-                                  <View style={styles.metaItem}>
-                                    <Ionicons name="people-outline" size={12} color="#6B7280" />
-                                    <Text style={styles.metaText}>{plannedMeal.servings}</Text>
+                      return (
+                        <View key={mealType} style={styles.mealCard}>
+                          <View style={styles.mealRow}>
+                            <View style={styles.mealTimeLabel}>
+                              <Text style={styles.mealTimeText}>{mealLabels[mealType]}</Text>
+                            </View>
+                            {plannedMeal ? (
+                              <View style={styles.plannedMeal}>
+                                <Image
+                                  source={{ uri: plannedMeal.recipeId.image || 'https://via.placeholder.com/150' }}
+                                  style={styles.mealImage}
+                                />
+                                <View style={styles.mealInfo}>
+                                  <Text style={styles.mealName}>{plannedMeal.recipeId.name}</Text>
+                                  <View style={styles.mealMeta}>
+                                    {plannedMeal.recipeId.description && (
+                                      <Text numberOfLines={1} style={styles.metaText}>{plannedMeal.recipeId.description}</Text>
+                                    )}
                                   </View>
                                 </View>
+                                <TouchableOpacity
+                                  style={styles.deleteButton}
+                                  onPress={() => handleRemoveMeal(plannedMeal._id)}
+                                >
+                                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                                </TouchableOpacity>
                               </View>
-                              <TouchableOpacity style={styles.detailButton}>
-                                <Text style={styles.detailButtonText}>Chi tiết</Text>
+                            ) : (
+                              <TouchableOpacity
+                                style={styles.addMealButton}
+                                onPress={() => {
+                                  setSelectedMeal({ date: getDayDate(dayIndex), mealType });
+                                  setShowAddModal(true);
+                                }}
+                              >
+                                <Ionicons name="add" size={16} color="#9CA3AF" />
+                                <Text style={styles.addMealText}>Thêm món ăn</Text>
                               </TouchableOpacity>
-                            </View>
-                          ) : (
-                            <TouchableOpacity
-                              style={styles.addMealButton}
-                              onPress={() => {
-                                setSelectedMeal({ day, mealType: meal });
-                                setShowAddModal(true);
-                              }}
-                            >
-                              <Ionicons name="add" size={16} color="#9CA3AF" />
-                              <Text style={styles.addMealText}>Thêm món ăn</Text>
-                            </TouchableOpacity>
-                          )}
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
-            ))}
-          </ScrollView>
-
-          {/* Recipe Suggestions Button */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.suggestButton}>
-              <Text style={styles.suggestButtonText}>Gợi ý công thức</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+              ))}
+            </ScrollView>
+          </>
+        )
       ) : (
         <CookbookView
+          key={refreshCookbook} // Force remount to refresh
           onAddRecipe={() => {
-            setShowAddModal(true);
-            setSelectedMeal(null);
+            setShowAddRecipeModal(true);
           }}
         />
       )}
 
-      {/* Add Meal Modal */}
-      {showAddModal && (
+      {/* Add Meal Modal Wrapper - Using existing component but needs logic update or separate component */}
+      {/* Current AddMealModal is likely just a stub or strictly for new definitions. 
+          We need a way to SELECT a recipe. For now, I'll temporarily disable strict modal usage 
+          and rely on user confirmation that they need "Select Recipe" flow. 
+      */}
+      {showAddModal && selectedMeal && (
         <AddMealModal
           isOpen={showAddModal}
           onClose={() => {
             setShowAddModal(false);
             setSelectedMeal(null);
           }}
-          mealType={selectedMeal?.mealType}
-          day={selectedMeal?.day}
+          mealType={selectedMeal.mealType}
+          date={selectedMeal.date}
+          onSuccess={() => {
+            loadWeeklyPlan(); // Refresh the plan
+          }}
+        />
+      )}
+
+      {/* Add Recipe Modal */}
+      {showAddRecipeModal && (
+        <AddRecipeModal
+          isOpen={showAddRecipeModal}
+          onClose={() => setShowAddRecipeModal(false)}
+          onSuccess={() => {
+            setRefreshCookbook(prev => prev + 1); // Trigger refresh
+          }}
         />
       )}
     </View>
@@ -408,21 +467,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
   },
-  footer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
   },
-  suggestButton: {
-    paddingVertical: 12,
-    backgroundColor: '#16A34A',
-    borderRadius: 12,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  suggestButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  weekDateRange: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '400',
   },
 });

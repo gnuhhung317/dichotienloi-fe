@@ -1,16 +1,56 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const { login, register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    // Validation
+    if (!email || !password) {
+      Alert.alert('Lỗi', 'Vui lòng nhập email và mật khẩu');
+      return;
+    }
+
+    if (isRegister && !fullName) {
+      Alert.alert('Lỗi', 'Vui lòng nhập họ và tên');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (isRegister) {
+        await register(email, password, fullName);
+        Alert.alert('Thành công', 'Đăng ký thành công!');
+      } else {
+        await login(email, password);
+        Alert.alert('Thành công', 'Đăng nhập thành công!');
+      }
+      
+      // Gọi callback nếu có
+      onLogin?.();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -81,12 +121,17 @@ export function Login({ onLogin }: LoginProps) {
           )}
 
           <TouchableOpacity
-            onPress={onLogin}
-            style={styles.loginButton}
+            onPress={handleSubmit}
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            disabled={isLoading}
           >
-            <Text style={styles.loginButtonText}>
-              {isRegister ? 'Đăng ký' : 'Đăng nhập'}
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.loginButtonText}>
+                {isRegister ? 'Đăng ký' : 'Đăng nhập'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -223,6 +268,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   dividerContainer: {
     flexDirection: 'row',
