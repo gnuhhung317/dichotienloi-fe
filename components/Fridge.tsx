@@ -257,7 +257,7 @@ export function Fridge() {
         </View>
 
         {/* Category Tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContent} style={styles.categoriesScroll}>
           {categories.map((category) => (
             <TouchableOpacity
               key={category.id}
@@ -573,8 +573,13 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 12,
   },
-  categoriesRow: {
+  categoriesScroll: {
+    flexGrow: 0,
+  },
+  categoriesContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 16,
   },
   categoryChip: {
     flexDirection: 'row',

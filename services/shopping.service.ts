@@ -35,12 +35,23 @@ export interface MarkAsBoughtDTO {
 
 class ShoppingService {
   /**
+   * Helper để normalize data từ backend (xử lý Decimal128)
+   */
+  private normalizeItem(item: any): ShoppingItem {
+    if (!item) return item;
+    return {
+      ...item,
+      quantity: item.quantity?.$numberDecimal ? parseFloat(item.quantity.$numberDecimal) : item.quantity
+    };
+  }
+  /**
    * Lấy danh sách mua sắm
    */
   async getShoppingItems(): Promise<ShoppingItem[]> {
     try {
       const response = await api.get('/shopping');
-      return response.data.data || response.data;
+      const items = response.data.data || response.data;
+      return Array.isArray(items) ? items.map((item: any) => this.normalizeItem(item)) : [];
     } catch (error) {
       throw error;
     }
@@ -52,7 +63,7 @@ class ShoppingService {
   async addItemToShoppingList(data: CreateShoppingItemDTO): Promise<ShoppingItem> {
     try {
       const response = await api.post('/shopping', data);
-      return response.data.data || response.data;
+      return this.normalizeItem(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
@@ -64,7 +75,7 @@ class ShoppingService {
   async markItemAsBought(data: MarkAsBoughtDTO): Promise<ShoppingItem> {
     try {
       const response = await api.put('/shopping/marker', data);
-      return response.data.data || response.data;
+      return this.normalizeItem(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
@@ -79,7 +90,7 @@ class ShoppingService {
   }): Promise<ShoppingItem> {
     try {
       const response = await api.put('/shopping', data);
-      return response.data.data || response.data;
+      return this.normalizeItem(response.data.data || response.data);
     } catch (error) {
       throw error;
     }

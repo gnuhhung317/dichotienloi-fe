@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <Home />;
+        return <Home onNavigate={setActiveTab} />;
       case 'fridge':
         return <Fridge />;
       case 'shopping':
@@ -34,7 +34,7 @@ export default function HomeScreen() {
       case 'profile':
         return <Profile onLogout={() => setIsAuthenticated(false)} />;
       default:
-        return <Home />;
+        return <Home onNavigate={setActiveTab} />;
     }
   };
 

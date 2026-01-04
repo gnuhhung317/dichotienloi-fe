@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { AddToFridgeModal } from './AddToFridgeModal';
@@ -16,7 +16,7 @@ import { useGroup } from '../context/GroupContext';
 
 type ActiveModal = 'addFridge' | 'scanner' | 'customItem' | 'invite' | null;
 
-export function Home() {
+export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
   const { user } = useAuth();
   const { hasGroup } = useGroup();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
@@ -92,6 +92,22 @@ export function Home() {
     }
   };
 
+  const handleAddFridgeItem = async (data: any) => {
+    try {
+      await fridgeService.createFridgeItem({
+        foodName: data.foodName,
+        quantity: data.quantity,
+        expiredAt: data.expiredAt,
+      });
+      await loadData(); // Reload home data
+      setActiveModal(null);
+      Alert.alert('Thành công', 'Đã thêm vào tủ lạnh');
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào tủ');
+      console.error('Add fridge item error:', error);
+    }
+  };
+
   // Helper for progress
   const shoppingProgress = totalShoppingItems > 0
     ? Math.round(((totalShoppingItems - shoppingCount) / totalShoppingItems) * 100)
@@ -125,7 +141,7 @@ export function Home() {
             {/* Quick Summary Cards */}
             <View style={styles.summaryCards}>
               {/* Shopping List Card */}
-              <TouchableOpacity style={styles.card}>
+              <TouchableOpacity style={styles.card} onPress={() => onNavigate('shopping')}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardIconRow}>
                     <View style={styles.cardIconGreen}>
@@ -149,7 +165,7 @@ export function Home() {
               </TouchableOpacity>
 
               {/* Fridge Alert Card */}
-              <TouchableOpacity style={[styles.card, styles.alertCard]}>
+              <TouchableOpacity style={[styles.card, styles.alertCard]} onPress={() => onNavigate('fridge')}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardIconRow}>
                     <View style={styles.cardIconOrange}>
@@ -187,7 +203,7 @@ export function Home() {
               </TouchableOpacity>
 
               {/* Today's Meal Card */}
-              <TouchableOpacity style={styles.card}>
+              <TouchableOpacity style={styles.card} onPress={() => onNavigate('meals')}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardIconRow}>
                     <View style={styles.cardIconPurple}>
@@ -269,6 +285,7 @@ export function Home() {
       <AddToFridgeModal
         isOpen={activeModal === 'addFridge'}
         onClose={() => setActiveModal(null)}
+        onSubmit={handleAddFridgeItem}
       />
       <BarcodeScannerModal
         isOpen={activeModal === 'scanner'}

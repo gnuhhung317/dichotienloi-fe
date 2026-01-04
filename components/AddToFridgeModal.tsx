@@ -230,7 +230,7 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
             {isNewItem && (
               <View style={styles.section}>
                 <Text style={styles.label}>Danh mục *</Text>
-                <View style={styles.unitPicker}>
+                <View style={styles.categoryListContainer}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {categories.map((cat) => (
                       <TouchableOpacity
@@ -497,6 +497,9 @@ const styles = StyleSheet.create({
   },
   unitPicker: {
     width: 100,
+  },
+  categoryListContainer: {
+    width: '100%',
   },
   unitButton: {
     paddingHorizontal: 12,

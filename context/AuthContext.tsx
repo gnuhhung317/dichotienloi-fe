@@ -30,23 +30,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const isAuth = await authService.isAuthenticated();
-      
+
       if (isAuth) {
         // Lấy user từ storage trước
         const storedUser = await authService.getStoredUser();
         setUser(storedUser);
-        
+
         // Sau đó gọi API để cập nhật thông tin mới nhất
         try {
           const currentUser = await authService.getMe();
           setUser(currentUser);
-        } catch (error) {
-          console.error('Error fetching current user:', error);
-          // Nếu lỗi, giữ user từ storage
+        } catch (error: any) {
+          // Nếu lỗi 401 (Unauthorized), means token expired & refresh failed -> Logout
+          if (error.response?.status === 401) {
+            console.log('Session expired, clearing user state');
+            setUser(null);
+            await authService.logout();
+          } else {
+            // Các lỗi khác (mất mạng, server error...), giữ user cũ (offline mode)
+            console.log('Error fetching current user (using offline data):', error.message);
+          }
         }
       }
     } catch (error) {
-      console.error('Error checking auth:', error);
+      console.log('Error checking auth:', error);
       setUser(null);
     } finally {
       setIsLoading(false);

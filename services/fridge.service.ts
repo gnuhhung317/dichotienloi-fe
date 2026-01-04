@@ -40,12 +40,24 @@ export interface TakeOutItemDTO {
 
 class FridgeService {
   /**
+   * Helper để normalize data từ backend (xử lý Decimal128)
+   */
+  private normalizeItem(item: any): FridgeItem {
+    if (!item) return item;
+    return {
+      ...item,
+      quantity: item.quantity?.$numberDecimal ? parseFloat(item.quantity.$numberDecimal) : item.quantity
+    };
+  }
+
+  /**
    * Lấy danh sách hàng trong tủ lạnh
    */
   async getFridgeItems(): Promise<FridgeItem[]> {
     try {
       const response = await api.get('/fridge');
-      return response.data;
+      const items = response.data.data || response.data; // Just in case structure varies
+      return Array.isArray(items) ? items.map((item: any) => this.normalizeItem(item)) : [];
     } catch (error) {
       throw error;
     }
@@ -57,7 +69,7 @@ class FridgeService {
   async createFridgeItem(data: CreateFridgeItemDTO): Promise<FridgeItem> {
     try {
       const response = await api.post('/fridge', data);
-      return response.data;
+      return this.normalizeItem(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
@@ -69,7 +81,7 @@ class FridgeService {
   async updateFridgeItem(data: UpdateFridgeItemDTO): Promise<FridgeItem> {
     try {
       const response = await api.put('/fridge', data);
-      return response.data;
+      return this.normalizeItem(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
@@ -82,7 +94,7 @@ class FridgeService {
   async takeOutFridgeItem(data: TakeOutItemDTO): Promise<FridgeItem> {
     try {
       const response = await api.patch('/fridge', data);
-      return response.data;
+      return this.normalizeItem(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
