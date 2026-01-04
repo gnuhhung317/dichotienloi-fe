@@ -12,9 +12,9 @@ interface InviteMemberModalProps {
 export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
   const { addMember, group } = useGroup();
   const [copied, setCopied] = useState(false);
-  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Tạm thời dùng invite code (có thể implement sau)
   const inviteCode = group?._id?.substring(0, 8).toUpperCase() || 'GROUP-CODE';
   const groupName = group?.name || 'Nhóm của bạn';
@@ -36,16 +36,21 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
   };
 
   const handleAddMember = async () => {
-    if (!userId.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập User ID');
+    if (!email.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập Email');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      Alert.alert('Lỗi', 'Email không hợp lệ');
       return;
     }
 
     setIsLoading(true);
     try {
-      await addMember(userId.trim());
+      await addMember(email.trim());
       Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
-      setUserId('');
+      setEmail('');
       onClose();
     } catch (error: any) {
       Alert.alert('Lỗi', error.message || 'Không thể thêm thành viên');
@@ -90,20 +95,22 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
               <Text style={styles.shareButtonText}>Chia sẻ mã mời</Text>
             </TouchableOpacity>
 
-            {/* Hoặc thêm trực tiếp bằng User ID */}
+            {/* Hoặc thêm trực tiếp bằng Email */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>hoặc</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            <Text style={styles.label}>Thêm bằng User ID</Text>
+            <Text style={styles.label}>Thêm bằng Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="Nhập User ID của thành viên"
-              value={userId}
-              onChangeText={setUserId}
+              placeholder="Nhập Email của thành viên (ví dụ: abc@gmail.com)"
+              value={email}
+              onChangeText={setEmail}
               editable={!isLoading}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
             <TouchableOpacity
               style={[styles.addButton, isLoading && styles.addButtonDisabled]}

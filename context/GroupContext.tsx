@@ -9,7 +9,7 @@ interface GroupContextType {
   hasGroup: boolean;
   isOwner: boolean;
   createGroup: (name: string) => Promise<void>;
-  addMember: (userId: string) => Promise<void>;
+  addMember: (email: string) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;
   refreshGroup: () => Promise<void>;
 }
@@ -40,7 +40,7 @@ export function GroupProvider({ children }: GroupProviderProps) {
     try {
       setIsLoading(true);
       const response = await groupService.getMyGroupMembers();
-      
+
       if (response && response.members && response.members.length > 0) {
         setMembers(response.members);
         setGroup(response.group);
@@ -68,9 +68,9 @@ export function GroupProvider({ children }: GroupProviderProps) {
     }
   };
 
-  const addMember = async (userId: string) => {
+  const addMember = async (email: string) => {
     try {
-      await groupService.addMember(userId);
+      await groupService.addMember(email);
       await loadGroupData(); // Reload members
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Không thể thêm thành viên');

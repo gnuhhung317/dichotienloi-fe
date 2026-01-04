@@ -31,7 +31,7 @@ export interface CreateGroupRequest {
 }
 
 export interface AddMemberRequest {
-  userId: string;
+  email: string;
 }
 
 export interface RemoveMemberRequest {
@@ -58,8 +58,8 @@ class GroupService {
   /**
    * Thêm thành viên vào nhóm
    */
-  async addMember(userId: string): Promise<GroupMember> {
-    const response = await api.post<GroupMember>('/user/group/add', { userId });
+  async addMember(email: string): Promise<GroupMember> {
+    const response = await api.post<GroupMember>('/user/group/add', { email });
     return response.data;
   }
 
