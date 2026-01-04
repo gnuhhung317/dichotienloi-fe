@@ -4,15 +4,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { shoppingService, ShoppingItem } from '../services/shopping.service';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
 
+import { useGroup } from '../context/GroupContext';
+
 export function ShoppingList() {
+  const { hasGroup } = useGroup();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Load shopping list on mount
   useEffect(() => {
-    loadShoppingItems();
-  }, []);
+    if (hasGroup) {
+      loadShoppingItems();
+    } else {
+      setIsLoading(false);
+    }
+  }, [hasGroup]);
 
   const loadShoppingItems = async () => {
     try {
@@ -92,6 +99,16 @@ export function ShoppingList() {
         <Ionicons name="basket-outline" size={48} color="#D1D5DB" />
         <Text style={styles.emptyText}>Danh sách mua trống</Text>
         <Text style={styles.emptySubText}>Nhấn + để thêm sản phẩm</Text>
+      </View>
+    );
+  }
+
+  if (!hasGroup) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+        <Text style={styles.emptyText}>Chưa tham gia nhóm</Text>
+        <Text style={styles.emptySubText}>Vui lòng tham gia một nhóm để quản lý mua sắm</Text>
       </View>
     );
   }

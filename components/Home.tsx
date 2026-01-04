@@ -11,9 +11,14 @@ import { shoppingService, ShoppingItem } from '../services/shopping.service';
 import { fridgeService, FridgeItem } from '../services/fridge.service';
 import { mealService, MealPlanItem } from '../services/meal.service';
 
+import { useAuth } from '../context/AuthContext';
+import { useGroup } from '../context/GroupContext';
+
 type ActiveModal = 'addFridge' | 'scanner' | 'customItem' | 'invite' | null;
 
 export function Home() {
+  const { user } = useAuth();
+  const { hasGroup } = useGroup();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,6 +30,7 @@ export function Home() {
   const [todayMeal, setTodayMeal] = useState<MealPlanItem | null>(null);
 
   const loadData = async () => {
+    if (!hasGroup) return;
     try {
       setIsLoading(true);
 
@@ -71,13 +77,19 @@ export function Home() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [])
+      if (hasGroup) {
+        loadData();
+      }
+    }, [hasGroup])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData();
+    if (hasGroup) {
+      loadData();
+    } else {
+      setRefreshing(false);
+    }
   };
 
   // Helper for progress
@@ -93,149 +105,164 @@ export function Home() {
       <View style={styles.content}>
         {/* Greeting */}
         <View style={styles.greeting}>
-          <Text style={styles.greetingTitle}>Xin chào, Minh!</Text>
-          <Text style={styles.greetingSubtitle}>Hôm nay bạn cần mua gì?</Text>
+          <Text style={styles.greetingTitle}>Xin chào, {user?.name || 'Bạn'}!</Text>
+          <Text style={styles.greetingSubtitle}>{hasGroup ? 'Hôm nay bạn cần mua gì?' : 'Bạn chưa tham gia nhóm nào.'}</Text>
         </View>
 
-        {/* Quick Summary Cards */}
-        <View style={styles.summaryCards}>
-          {/* Shopping List Card */}
-          <TouchableOpacity style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIconRow}>
-                <View style={styles.cardIconGreen}>
-                  <Text style={styles.cardEmoji}>🛒</Text>
-                </View>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle}>Danh sách mua sắm</Text>
-                  <Text style={styles.cardSubtitle}>
-                    {shoppingCount > 0 ? `${shoppingCount} món cần mua` : 'Đã mua đủ'}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </View>
-            <View style={styles.progressRow}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${shoppingProgress}%` }]} />
-              </View>
-              <Text style={styles.progressText}>{shoppingProgress}%</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Fridge Alert Card */}
-          <TouchableOpacity style={[styles.card, styles.alertCard]}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIconRow}>
-                <View style={styles.cardIconOrange}>
-                  <Ionicons name="alert-circle" size={20} color="#EA580C" />
-                </View>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle}>Cảnh báo tủ lạnh</Text>
-                  <Text style={styles.alertText}>
-                    {expiringItems.length > 0
-                      ? `${expiringItems.length} món sắp hết hạn`
-                      : 'Tủ lạnh an toàn'}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </View>
-
-            {expiringItems.length > 0 && (
-              <View style={styles.alertItems}>
-                {expiringItems.map(item => {
-                  const days = fridgeService.calculateDaysUntilExpiry(item.expiredAt);
-                  const label = days < 0 ? 'Đã hết hạn' : days === 0 ? 'Hết hạn hôm nay' : `${days} ngày nữa`;
-                  const foodName = typeof item.foodId === 'string' ? 'Món ăn' : item.foodId.name;
-                  return (
-                    <View key={item._id} style={styles.alertItem}>
-                      <Ionicons name="time-outline" size={16} color="#EA580C" />
-                      <Text style={styles.alertItemText} numberOfLines={1}>
-                        {foodName} - {label}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Today's Meal Card */}
-          <TouchableOpacity style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIconRow}>
-                <View style={styles.cardIconPurple}>
-                  <Text style={styles.cardEmoji}>🍽️</Text>
-                </View>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle}>Thực đơn hôm nay</Text>
-                  <Text style={styles.cardSubtitle}>
-                    {todayMeal ? 'Đã lên kế hoạch' : 'Chưa có kế hoạch'}
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </View>
-
-            {todayMeal ? (
-              <View style={styles.mealRow}>
-                <Image
-                  source={{ uri: todayMeal.recipeId.image || 'https://via.placeholder.com/150' }}
-                  style={styles.mealImage}
-                />
-                <View style={styles.mealInfo}>
-                  <Text style={styles.mealName}>{todayMeal.recipeId.name}</Text>
-                  <View style={styles.mealMeta}>
-                    <Text style={styles.mealMetaText}>
-                      {todayMeal.mealType === 'dinner' ? 'Bữa tối' : todayMeal.mealType === 'lunch' ? 'Bữa trưa' : 'Bữa sáng'}
-                    </Text>
-                    <Text style={styles.mealMetaText}>•</Text>
-                    <Text style={styles.mealMetaText}>{todayMeal.recipeId.description || 'Món ngon mỗi ngày'}</Text>
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.emptyMealState}>
-                <Text style={styles.emptyMealText}>Chưa có món nào cho hôm nay</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('addFridge')}>
-              <View style={[styles.actionIcon, styles.actionIconGreen]}>
-                <Text style={styles.actionEmoji}>➕</Text>
-              </View>
-              <Text style={styles.actionText}>Thêm vào tủ lạnh</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('scanner')}>
-              <View style={[styles.actionIcon, styles.actionIconBlue]}>
-                <Text style={styles.actionEmoji}>📱</Text>
-              </View>
-              <Text style={styles.actionText}>Quét mã vạch</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('customItem')}>
-              <View style={[styles.actionIcon, styles.actionIconPurple]}>
-                <Text style={styles.actionEmoji}>📝</Text>
-              </View>
-              <Text style={styles.actionText}>Thêm món mới</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('invite')}>
-              <View style={[styles.actionIcon, styles.actionIconOrange]}>
-                <Text style={styles.actionEmoji}>👥</Text>
-              </View>
-              <Text style={styles.actionText}>Mời thành viên</Text>
+        {!hasGroup ? (
+          <View style={styles.emptyGroupState}>
+            <Ionicons name="people-outline" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyGroupText}>
+              Vui lòng tạo hoặc tham gia một nhóm để sử dụng các tính năng mua sắm và quản lý tủ lạnh.
+            </Text>
+            <TouchableOpacity style={styles.createGroupButton} onPress={() => setActiveModal('invite')}>
+              <Text style={styles.createGroupButtonText}>Tham gia ngay</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        ) : (
+          <>
 
-        {/* Recent Activity - Kept static for now as requested to focus on main cards, but could be dynamic later */}
-        {/* <View style={styles.section}> ... </View> */}
+            {/* Quick Summary Cards */}
+            <View style={styles.summaryCards}>
+              {/* Shopping List Card */}
+              <TouchableOpacity style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardIconRow}>
+                    <View style={styles.cardIconGreen}>
+                      <Text style={styles.cardEmoji}>🛒</Text>
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>Danh sách mua sắm</Text>
+                      <Text style={styles.cardSubtitle}>
+                        {shoppingCount > 0 ? `${shoppingCount} món cần mua` : 'Đã mua đủ'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
+                <View style={styles.progressRow}>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${shoppingProgress}%` }]} />
+                  </View>
+                  <Text style={styles.progressText}>{shoppingProgress}%</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Fridge Alert Card */}
+              <TouchableOpacity style={[styles.card, styles.alertCard]}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardIconRow}>
+                    <View style={styles.cardIconOrange}>
+                      <Ionicons name="alert-circle" size={20} color="#EA580C" />
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>Cảnh báo tủ lạnh</Text>
+                      <Text style={styles.alertText}>
+                        {expiringItems.length > 0
+                          ? `${expiringItems.length} món sắp hết hạn`
+                          : 'Tủ lạnh an toàn'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
+
+                {expiringItems.length > 0 && (
+                  <View style={styles.alertItems}>
+                    {expiringItems.map(item => {
+                      const days = fridgeService.calculateDaysUntilExpiry(item.expiredAt);
+                      const label = days < 0 ? 'Đã hết hạn' : days === 0 ? 'Hết hạn hôm nay' : `${days} ngày nữa`;
+                      const foodName = typeof item.foodId === 'string' ? 'Món ăn' : item.foodId.name;
+                      return (
+                        <View key={item._id} style={styles.alertItem}>
+                          <Ionicons name="time-outline" size={16} color="#EA580C" />
+                          <Text style={styles.alertItemText} numberOfLines={1}>
+                            {foodName} - {label}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Today's Meal Card */}
+              <TouchableOpacity style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardIconRow}>
+                    <View style={styles.cardIconPurple}>
+                      <Text style={styles.cardEmoji}>🍽️</Text>
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>Thực đơn hôm nay</Text>
+                      <Text style={styles.cardSubtitle}>
+                        {todayMeal ? 'Đã lên kế hoạch' : 'Chưa có kế hoạch'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
+
+                {todayMeal ? (
+                  <View style={styles.mealRow}>
+                    <Image
+                      source={{ uri: todayMeal.recipeId.image || 'https://via.placeholder.com/150' }}
+                      style={styles.mealImage}
+                    />
+                    <View style={styles.mealInfo}>
+                      <Text style={styles.mealName}>{todayMeal.recipeId.name}</Text>
+                      <View style={styles.mealMeta}>
+                        <Text style={styles.mealMetaText}>
+                          {todayMeal.mealType === 'dinner' ? 'Bữa tối' : todayMeal.mealType === 'lunch' ? 'Bữa trưa' : 'Bữa sáng'}
+                        </Text>
+                        <Text style={styles.mealMetaText}>•</Text>
+                        <Text style={styles.mealMetaText}>{todayMeal.recipeId.description || 'Món ngon mỗi ngày'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.emptyMealState}>
+                    <Text style={styles.emptyMealText}>Chưa có món nào cho hôm nay</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
+              <View style={styles.actionsGrid}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('addFridge')}>
+                  <View style={[styles.actionIcon, styles.actionIconGreen]}>
+                    <Text style={styles.actionEmoji}>➕</Text>
+                  </View>
+                  <Text style={styles.actionText}>Thêm vào tủ lạnh</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('scanner')}>
+                  <View style={[styles.actionIcon, styles.actionIconBlue]}>
+                    <Text style={styles.actionEmoji}>📱</Text>
+                  </View>
+                  <Text style={styles.actionText}>Quét mã vạch</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('customItem')}>
+                  <View style={[styles.actionIcon, styles.actionIconPurple]}>
+                    <Text style={styles.actionEmoji}>📝</Text>
+                  </View>
+                  <Text style={styles.actionText}>Thêm món mới</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('invite')}>
+                  <View style={[styles.actionIcon, styles.actionIconOrange]}>
+                    <Text style={styles.actionEmoji}>👥</Text>
+                  </View>
+                  <Text style={styles.actionText}>Mời thành viên</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Recent Activity - Kept static for now as requested to focus on main cards, but could be dynamic later */}
+            {/* <View style={styles.section}> ... </View> */}
+          </>
+        )}
       </View>
 
       {/* Modals */}
@@ -479,4 +506,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   /* Activity styles removed for now as section is hidden/removed */
+  emptyGroupState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 16,
+  },
+  emptyGroupText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#6B7280',
+    maxWidth: '80%',
+    lineHeight: 24,
+  },
+  createGroupButton: {
+    marginTop: 8,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 99,
+  },
+  createGroupButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 });

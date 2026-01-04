@@ -6,7 +6,10 @@ import { CookbookView } from './CookbookView';
 import { AddRecipeModal } from './AddRecipeModal';
 import { mealService, MealPlanItem } from '../services/meal.service';
 
+import { useGroup } from '../context/GroupContext';
+
 export function MealPlanner() {
+  const { hasGroup } = useGroup();
   const [currentWeek, setCurrentWeek] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
@@ -27,10 +30,10 @@ export function MealPlanner() {
   const mealLabels: Record<string, string> = { 'breakfast': 'Sáng', 'lunch': 'Trưa', 'dinner': 'Tối' };
 
   useEffect(() => {
-    if (activeTab === 'plan') {
+    if (activeTab === 'plan' && hasGroup) {
       loadWeeklyPlan();
     }
-  }, [currentWeek, activeTab]);
+  }, [currentWeek, activeTab, hasGroup]);
 
   const getWeekRange = () => {
     const today = new Date();
@@ -95,6 +98,21 @@ export function MealPlanner() {
         item.mealType === mealType;
     });
   };
+
+  if (!hasGroup) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.cookbookHeader}>
+          <Text style={styles.cookbookTitle}>Thực đơn & Sổ tay</Text>
+        </View>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginTop: 12 }}>Chưa tham gia nhóm</Text>
+          <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 8 }}>Vui lòng tham gia nhóm để lên thực đơn</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

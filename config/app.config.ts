@@ -17,7 +17,7 @@ const getApiUrl = () => {
   
   // Fallback: Thay YOUR_LOCAL_IP bằng IP thực của máy bạn
   // Tìm IP: Windows → ipconfig, Mac/Linux → ifconfig
-  return 'http://192.168.1.10:4000/api'; // ✅ IP của máy bạn
+  return 'http://192.168.1.7:4000/api'; // ✅ IP của máy bạn
 };
 
 // API Configuration

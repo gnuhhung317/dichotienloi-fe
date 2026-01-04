@@ -9,6 +9,7 @@ export interface ShoppingItem {
       _id: string;
       name: string;
     } | string;
+    image?: string;
   } | string;
   quantity: number;
   is_bought: boolean;

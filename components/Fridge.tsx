@@ -6,8 +6,10 @@ import { AddToFridgeModal } from './AddToFridgeModal';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
 import { foodService } from '../services/food.service';
 import { shoppingService } from '../services/shopping.service';
+import { useGroup } from '../context/GroupContext';
 
 export function Fridge() {
+  const { hasGroup } = useGroup();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -24,8 +26,12 @@ export function Fridge() {
 
   // Load data when component mount
   useEffect(() => {
-    loadData();
-  }, []);
+    if (hasGroup) {
+      loadData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [hasGroup]);
 
   const loadData = async () => {
     try {
@@ -209,6 +215,16 @@ export function Fridge() {
 
     return matchesSearch && matchesCategory;
   });
+
+  if (!hasGroup) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+        <Text style={styles.emptyTitle}>Chưa tham gia nhóm</Text>
+        <Text style={styles.emptyText}>Vui lòng tham gia một nhóm để quản lý tủ lạnh</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
