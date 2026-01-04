@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { recipeService } from '../services/recipe.service';
+import { foodService } from '../services/food.service';
 
 interface AddRecipeModalProps {
     isOpen: boolean;
@@ -12,22 +14,146 @@ interface AddRecipeModalProps {
 export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalProps) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [ingredients, setIngredients] = useState<{ foodId: string; foodName: string; quantity: string; unitId: string; unitName: string }[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Ingredient Form State
+    const [showIngredientForm, setShowIngredientForm] = useState(false);
+    const [searchFoodText, setSearchFoodText] = useState('');
+    const [foundFoods, setFoundFoods] = useState<any[]>([]);
+    const [selectedFood, setSelectedFood] = useState<any>(null);
+    const [ingQuantity, setIngQuantity] = useState('1');
+    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [units, setUnits] = useState<string[]>([]);
+    const [isCreatingNew, setIsCreatingNew] = useState(false);
+    const [newCategory, setNewCategory] = useState('');
+    const [newUnit, setNewUnit] = useState('');
+
+    // Load metadata
+    useEffect(() => {
+        if (isOpen) {
+            loadMetadata();
+        }
+    }, [isOpen]);
+
+    const loadMetadata = async () => {
+        const [cats, us] = await Promise.all([
+            foodService.getCategoriesAsStrings(),
+            foodService.getUnitsAsStrings()
+        ]);
+        setCategories(cats);
+        setUnits(us);
+        if (cats.length > 0) setNewCategory(cats[0]);
+        if (us.length > 0) setNewUnit(us[0]);
+    };
+
+    const [isSearching, setIsSearching] = useState(false);
+
+    const searchFoods = async (text: string) => {
+        setSearchFoodText(text);
+        setIsCreatingNew(false);
+        setSelectedFood(null);
+
+        if (text.length < 2) {
+            setFoundFoods([]);
+            return;
+        }
+        try {
+            setIsSearching(true);
+            const results = await foodService.searchFoods(text);
+            setFoundFoods(results.slice(0, 5));
+        } catch (error) {
+            console.log('Search error:', error);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleAddIngredient = async () => {
+        let finalFood = selectedFood;
+
+        if (isCreatingNew) {
+            if (!newCategory || !newUnit) {
+                alert('Vui lòng chọn danh mục và đơn vị');
+                return;
+            }
+            try {
+                setIsSubmitting(true); // Reuse submitting state for loading
+                const created = await foodService.createFood({
+                    name: searchFoodText,
+                    foodCategoryName: newCategory,
+                    unitName: newUnit
+                });
+                finalFood = created;
+            } catch (err) {
+                console.error(err);
+                alert('Không thể tạo món mới');
+                return;
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+
+        if (!finalFood) {
+            alert('Vui lòng chọn thực phẩm');
+            return;
+        }
+        if (!ingQuantity || isNaN(parseFloat(ingQuantity))) {
+            alert('Vui lòng nhập số lượng hợp lệ');
+            return;
+        }
+
+        const newIng = {
+            foodId: finalFood._id,
+            foodName: finalFood.name,
+            quantity: ingQuantity,
+            unitId: typeof finalFood.unitId === 'object' ? finalFood.unitId._id : finalFood.unitId,
+            unitName: typeof finalFood.unitId === 'object' ? finalFood.unitId.name : finalFood.unit || 'đơn vị'
+        };
+
+        setIngredients([...ingredients, newIng]);
+
+        // Reset form
+        setSelectedFood(null);
+        setSearchFoodText('');
+        setFoundFoods([]);
+        setIngQuantity('1');
+        setIsCreatingNew(false);
+        setShowIngredientForm(false);
+    };
+
+    const handleRemoveIngredient = (index: number) => {
+        const newIngs = [...ingredients];
+        newIngs.splice(index, 1);
+        setIngredients(newIngs);
+    };
 
     const handleSubmit = async () => {
         if (!name.trim()) return;
 
         try {
             setIsSubmitting(true);
+
+            const payloadIngredients = ingredients.map(ing => ({
+                foodId: ing.foodId,
+                quantity: parseFloat(ing.quantity.replace(',', '.')),
+                unitId: ing.unitId
+            }));
+
             await recipeService.createRecipe({
                 name,
                 description,
-                groupOnly: true
+                groupOnly: true,
+                ingredients: payloadIngredients,
+                image: imageUri || undefined
             });
             onSuccess();
             onClose();
             setName('');
             setDescription('');
+            setIngredients([]);
+            setImageUri(null);
         } catch (error) {
             console.error('Create recipe error:', error);
             alert('Không thể tạo công thức');
@@ -53,6 +179,30 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalPro
                     </View>
 
                     <ScrollView style={styles.content}>
+                        {/* Image Picker */}
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Hình ảnh (Tùy chọn)</Text>
+                            <TouchableOpacity onPress={async () => {
+                                const result = await ImagePicker.launchImageLibraryAsync({
+                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                    allowsEditing: true,
+                                    aspect: [16, 9],
+                                    quality: 0.5,
+                                });
+                                if (!result.canceled) {
+                                    setImageUri(result.assets[0].uri);
+                                }
+                            }} style={styles.imagePickerButton}>
+                                {imageUri ? (
+                                    <Image source={{ uri: imageUri }} style={styles.pickedImage} />
+                                ) : (
+                                    <View style={styles.placeholderImage}>
+                                        <Ionicons name="camera-outline" size={32} color="#9CA3AF" />
+                                        <Text style={styles.uploadText}>Chọn ảnh bìa</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Tên món ăn *</Text>
                             <TextInput
@@ -76,6 +226,125 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalPro
                                 numberOfLines={4}
                                 textAlignVertical="top"
                             />
+                        </View>
+
+                        {/* Ingredients Section */}
+                        <View style={styles.formGroup}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.label}>Nguyên liệu ({ingredients.length})</Text>
+                                <TouchableOpacity onPress={() => setShowIngredientForm(!showIngredientForm)}>
+                                    <Text style={styles.addIngText}>+ Thêm nguyên liệu</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Add Ingredient Form */}
+                            {showIngredientForm && (
+                                <View style={styles.addIngForm}>
+                                    <Text style={styles.subLabel}>Tìm thực phẩm:</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={searchFoodText}
+                                        onChangeText={searchFoods}
+                                        placeholder="Gõ để tìm kiếm..."
+                                    />
+                                    {isSearching && <ActivityIndicator size="small" color="#16A34A" style={{ marginTop: 8 }} />}
+                                    {!isSearching && foundFoods.length > 0 && (
+                                        <View style={styles.searchResults}>
+                                            {foundFoods.map(food => (
+                                                <TouchableOpacity
+                                                    key={food._id}
+                                                    style={styles.searchItem}
+                                                    onPress={() => {
+                                                        setSelectedFood(food);
+                                                        setSearchFoodText(food.name);
+                                                        setFoundFoods([]);
+                                                        setIsCreatingNew(false);
+                                                    }}
+                                                >
+                                                    <Text>{food.name}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    )}
+
+                                    {!isSearching && searchFoodText.length > 1 && !selectedFood && (
+                                        <TouchableOpacity
+                                            style={styles.createNewBtn}
+                                            onPress={() => {
+                                                setIsCreatingNew(true);
+                                                setSelectedFood(null);
+                                                setFoundFoods([]);
+                                            }}
+                                        >
+                                            <Text style={styles.createNewText}>+ Tạo mới "{searchFoodText}"</Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {isCreatingNew && (
+                                        <View style={styles.creationForm}>
+                                            <Text style={styles.creationLabel}>Chọn thông tin cho món mới:</Text>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                                                {categories.map(c => (
+                                                    <TouchableOpacity
+                                                        key={c}
+                                                        style={[styles.chip, newCategory === c && styles.chipActive]}
+                                                        onPress={() => setNewCategory(c)}
+                                                    >
+                                                        <Text style={[styles.chipText, newCategory === c && styles.chipTextActive]}>{c}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </ScrollView>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                                                {units.map(u => (
+                                                    <TouchableOpacity
+                                                        key={u}
+                                                        style={[styles.chip, newUnit === u && styles.chipActive]}
+                                                        onPress={() => setNewUnit(u)}
+                                                    >
+                                                        <Text style={[styles.chipText, newUnit === u && styles.chipTextActive]}>{u}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+                                    )}
+
+                                    {(selectedFood || isCreatingNew) && (
+                                        <View style={styles.selectedFoodParams}>
+                                            {selectedFood && <Text style={styles.selectedFoodName}>Đã chọn: {selectedFood.name}</Text>}
+                                            {isCreatingNew && <Text style={styles.selectedFoodName}>Đang tạo: {searchFoodText}</Text>}
+
+                                            <View style={styles.qtyRow}>
+                                                <TextInput
+                                                    style={[styles.input, styles.qtyInput]}
+                                                    value={ingQuantity}
+                                                    onChangeText={setIngQuantity}
+                                                    keyboardType="numeric"
+                                                />
+                                                <Text style={styles.unitText}>
+                                                    {isCreatingNew ? newUnit : (typeof selectedFood.unitId === 'object' ? selectedFood.unitId.name : 'đơn vị')}
+                                                </Text>
+                                            </View>
+                                            <TouchableOpacity style={styles.addIngBtn} onPress={handleAddIngredient}>
+                                                <Text style={styles.addIngBtnText}>{isCreatingNew ? 'Tạo & Thêm' : 'Thêm'}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+
+                            {/* Ingredient List */}
+                            <View style={styles.ingList}>
+                                {ingredients.map((ing, idx) => (
+                                    <View key={idx} style={styles.ingItem}>
+                                        <Text style={styles.ingText}>
+                                            {ing.foodName} - {ing.quantity} {ing.unitName}
+                                        </Text>
+                                        <TouchableOpacity onPress={() => handleRemoveIngredient(idx)}>
+                                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
 
                         <TouchableOpacity
@@ -106,7 +375,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        maxHeight: '85%',
+        maxHeight: '90%',
     },
     header: {
         flexDirection: 'row',
@@ -160,5 +429,165 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8
+    },
+    addIngText: {
+        color: '#16A34A',
+        fontWeight: '500',
+    },
+    addIngForm: {
+        backgroundColor: '#F9FAFB',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+    subLabel: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 4
+    },
+    searchResults: {
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 150
+    },
+    searchItem: {
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6'
+    },
+    selectedFoodParams: {
+        marginTop: 12
+    },
+    selectedFoodName: {
+        fontWeight: '600',
+        marginBottom: 8,
+        color: '#111827'
+    },
+    qtyRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12
+    },
+    qtyInput: {
+        width: 80,
+        textAlign: 'center'
+    },
+    unitText: {
+        color: '#6B7280'
+    },
+    addIngBtn: {
+        marginTop: 12,
+        backgroundColor: '#D1FAE5',
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 8
+    },
+    addIngBtnText: {
+        color: '#047857',
+        fontWeight: '600'
+    },
+    ingList: {
+        gap: 8
+    },
+    ingItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#F3F4F6',
+        padding: 12,
+        borderRadius: 8
+    },
+    ingText: {
+        fontSize: 14,
+        color: '#374151',
+        fontWeight: '500'
+    },
+    createNewBtn: {
+        padding: 12,
+        backgroundColor: '#EFF6FF',
+        borderRadius: 8,
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+        alignItems: 'center'
+    },
+    createNewText: {
+        color: '#1D4ED8',
+        fontWeight: '600'
+    },
+    creationForm: {
+        marginTop: 12,
+        padding: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+    creationLabel: {
+        fontSize: 12,
+        color: '#4B5563',
+        marginBottom: 8,
+        fontWeight: '500'
+    },
+    chipScroll: {
+        marginBottom: 8
+    },
+    chip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 16,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+    chipActive: {
+        backgroundColor: '#D1FAE5',
+        borderColor: '#16A34A'
+    },
+    chipText: {
+        fontSize: 12,
+        color: '#374151'
+    },
+    chipTextActive: {
+        color: '#16A34A',
+        fontWeight: '600'
+    },
+    imagePickerButton: {
+        height: 160,
+        width: '100%',
+        borderRadius: 12,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        borderStyle: 'dashed',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    pickedImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    placeholderImage: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    uploadText: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginTop: 8,
     },
 });

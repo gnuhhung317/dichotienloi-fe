@@ -28,6 +28,11 @@ export interface CreateRecipeDTO {
     name: string;
     description: string;
     groupOnly: boolean;
+    ingredients?: {
+        foodId: string;
+        quantity: number;
+        unitId: string;
+    }[];
 }
 
 class RecipeService {
@@ -43,9 +48,34 @@ class RecipeService {
         }
     }
 
-    async createRecipe(data: CreateRecipeDTO): Promise<Recipe> {
-        const response = await api.post('/recipe', data);
-        return response.data;
+    async createRecipe(data: CreateRecipeDTO & { image?: string }): Promise<Recipe> {
+        if (data.image) {
+            const formData = new FormData();
+            formData.append('name', data.name);
+            formData.append('description', data.description);
+            formData.append('groupOnly', String(data.groupOnly));
+            if (data.ingredients) {
+                formData.append('ingredients', JSON.stringify(data.ingredients));
+            }
+
+            const filename = data.image.split('/').pop() || 'photo.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+
+            formData.append('image', {
+                uri: data.image,
+                name: filename,
+                type: type,
+            } as any);
+
+            const response = await api.post('/recipe', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return response.data;
+        } else {
+            const response = await api.post('/recipe', data);
+            return response.data;
+        }
     }
 
     async getRecipeById(recipeId: string): Promise<Recipe> {

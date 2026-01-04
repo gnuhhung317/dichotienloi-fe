@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { foodService } from '../services/food.service';
 
@@ -26,6 +27,7 @@ export function AddToShoppingListModal({
   const [isNewItem, setIsNewItem] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('kg');
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -94,8 +96,22 @@ export function AddToShoppingListModal({
     setQuantity('1');
     setIsNewItem(true);
     setShowSuggestions(false);
+    setImageUri(null);
     if (categories.length > 0) setSelectedCategory(categories[0]);
     if (units.length > 0) setSelectedUnit(units[0]);
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
   };
 
   const handleSubmit = async () => {
@@ -119,7 +135,8 @@ export function AddToShoppingListModal({
         const newFood = await foodService.createFood({
           name: itemName.trim(),
           foodCategoryName: selectedCategory,
-          unitName: selectedUnit
+          unitName: selectedUnit,
+          image: imageUri || undefined
         });
         foodIdToSubmit = newFood._id;
         // Update local list
@@ -139,7 +156,7 @@ export function AddToShoppingListModal({
       // Submit to API
       await onSubmit({
         foodId: foodIdToSubmit,
-        quantity: parseInt(quantity) || 1,
+        quantity: parseFloat(quantity.replace(',', '.')) || 1,
       });
 
       resetForm();
@@ -171,6 +188,21 @@ export function AddToShoppingListModal({
               </View>
             ) : (
               <>
+                {/* Image Picker */}
+                <View style={styles.section}>
+                  <Text style={styles.label}>Hình ảnh (Tùy chọn)</Text>
+                  <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+                    {imageUri ? (
+                      <Image source={{ uri: imageUri }} style={styles.pickedImage} />
+                    ) : (
+                      <View style={styles.placeholderImage}>
+                        <Ionicons name="camera-outline" size={24} color="#9CA3AF" />
+                        <Text style={styles.uploadText}>Chọn ảnh</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
                 {/* Item Name / Selection */}
                 <View style={styles.section}>
                   <Text style={styles.label}>Tên thực phẩm *</Text>
@@ -348,6 +380,31 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#111827',
     marginBottom: 8,
+  },
+  imagePickerButton: {
+    height: 100,
+    width: 100,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  pickedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
   input: {
     borderWidth: 1,

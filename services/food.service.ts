@@ -6,6 +6,7 @@ export interface Food {
   category: string;
   unit: string;
   groupId?: string;
+  image?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -49,10 +50,33 @@ class FoodService {
     name: string;
     foodCategoryName: string;
     unitName: string;
+    image?: string;
   }): Promise<Food> {
     try {
-      const response = await api.post('/food', data);
-      return response.data.data || response.data;
+      if (data.image) {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('foodCategoryName', data.foodCategoryName);
+        formData.append('unitName', data.unitName);
+
+        const filename = data.image.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+
+        formData.append('image', {
+          uri: data.image,
+          name: filename,
+          type: type,
+        } as any);
+
+        const response = await api.post('/food', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data.data || response.data;
+      } else {
+        const response = await api.post('/food', data);
+        return response.data.data || response.data;
+      }
     } catch (error) {
       throw error;
     }
@@ -65,10 +89,33 @@ class FoodService {
     name: string;
     newCategory: string;
     newUnit: string;
+    image?: string;
   }): Promise<Food> {
     try {
-      const response = await api.put('/food', data);
-      return response.data.data || response.data;
+      if (data.image) {
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('newCategory', data.newCategory);
+        formData.append('newUnit', data.newUnit);
+
+        const filename = data.image.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+
+        formData.append('image', {
+          uri: data.image,
+          name: filename,
+          type: type,
+        } as any);
+
+        const response = await api.put('/food', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data.data || response.data;
+      } else {
+        const response = await api.put('/food', data);
+        return response.data.data || response.data;
+      }
     } catch (error) {
       throw error;
     }

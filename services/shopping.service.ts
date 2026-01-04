@@ -101,11 +101,11 @@ class ShoppingService {
    * Lọc items đã mua và chưa mua
    */
   getBoughtItems(items: ShoppingItem[]): ShoppingItem[] {
-    return items.filter((item) => item.isBought);
+    return items.filter((item) => item.is_bought);
   }
 
   getUnboughtItems(items: ShoppingItem[]): ShoppingItem[] {
-    return items.filter((item) => !item.isBought);
+    return items.filter((item) => !item.is_bought);
   }
 
   /**

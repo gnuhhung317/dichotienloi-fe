@@ -179,48 +179,54 @@ export function MealPlanner() {
                   <Text style={styles.daySectionTitle}>{day}, {getDayDate(dayIndex).getDate()} Tháng {getDayDate(dayIndex).getMonth() + 1}</Text>
                   <View style={styles.mealsContainer}>
                     {meals.map((mealType) => {
-                      const plannedMeal = getPlannedMeal(dayIndex, mealType);
+                      // Filter for ALL meals in this slot
+                      const plannedMeals = weeklyPlan.filter(item => {
+                        const itemDate = new Date(item.date);
+                        const date = getDayDate(dayIndex);
+                        return itemDate.getDate() === date.getDate() &&
+                          itemDate.getMonth() === date.getMonth() &&
+                          item.mealType === mealType;
+                      });
 
                       return (
                         <View key={mealType} style={styles.mealCard}>
-                          <View style={styles.mealRow}>
-                            <View style={styles.mealTimeLabel}>
-                              <Text style={styles.mealTimeText}>{mealLabels[mealType]}</Text>
-                            </View>
-                            {plannedMeal ? (
-                              <View style={styles.plannedMeal}>
-                                <Image
-                                  source={{ uri: plannedMeal.recipeId.image || 'https://via.placeholder.com/150' }}
-                                  style={styles.mealImage}
-                                />
-                                <View style={styles.mealInfo}>
-                                  <Text style={styles.mealName}>{plannedMeal.recipeId.name}</Text>
-                                  <View style={styles.mealMeta}>
-                                    {plannedMeal.recipeId.description && (
-                                      <Text numberOfLines={1} style={styles.metaText}>{plannedMeal.recipeId.description}</Text>
-                                    )}
-                                  </View>
-                                </View>
-                                <TouchableOpacity
-                                  style={styles.deleteButton}
-                                  onPress={() => handleRemoveMeal(plannedMeal._id)}
-                                >
-                                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                                </TouchableOpacity>
-                              </View>
-                            ) : (
-                              <TouchableOpacity
-                                style={styles.addMealButton}
-                                onPress={() => {
-                                  setSelectedMeal({ date: getDayDate(dayIndex), mealType });
-                                  setShowAddModal(true);
-                                }}
-                              >
-                                <Ionicons name="add" size={16} color="#9CA3AF" />
-                                <Text style={styles.addMealText}>Thêm món ăn</Text>
-                              </TouchableOpacity>
-                            )}
+                          <View style={styles.mealHeader}>
+                            <Text style={styles.mealTimeText}>{mealLabels[mealType]}</Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setSelectedMeal({ date: getDayDate(dayIndex), mealType });
+                                setShowAddModal(true);
+                              }}
+                            >
+                              <Ionicons name="add-circle" size={24} color="#16A34A" />
+                            </TouchableOpacity>
                           </View>
+
+                          {plannedMeals.length > 0 ? (
+                            <View style={styles.mealList}>
+                              {plannedMeals.map((meal) => (
+                                <View key={meal._id} style={styles.mealItem}>
+                                  <Image
+                                    source={{ uri: meal.recipeId.image || 'https://via.placeholder.com/150' }}
+                                    style={styles.mealImage}
+                                  />
+                                  <View style={styles.mealInfo}>
+                                    <Text style={styles.mealName}>{meal.recipeId.name}</Text>
+                                  </View>
+                                  <TouchableOpacity
+                                    style={styles.deleteButton}
+                                    onPress={() => handleRemoveMeal(meal._id)}
+                                  >
+                                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                                  </TouchableOpacity>
+                                </View>
+                              ))}
+                            </View>
+                          ) : (
+                            <View style={styles.emptySlot}>
+                              <Text style={styles.emptySlotText}>Chưa có món ăn</Text>
+                            </View>
+                          )}
                         </View>
                       );
                     })}
@@ -471,10 +477,35 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 8,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  mealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  mealList: {
+    padding: 12,
+    gap: 12,
+  },
+  mealItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F9FAFB',
+    padding: 8,
+    borderRadius: 8,
+  },
+  emptySlot: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptySlotText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
   weekDateRange: {
     fontSize: 14,

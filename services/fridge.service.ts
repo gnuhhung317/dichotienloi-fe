@@ -6,6 +6,7 @@ export interface FridgeItem {
     _id: string;
     name: string;
     categoryId: string;
+    image?: string;
   } | string;
   unitId: {
     _id: string;

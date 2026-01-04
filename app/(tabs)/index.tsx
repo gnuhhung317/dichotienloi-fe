@@ -9,11 +9,13 @@ import { Profile } from '@/components/Profile';
 import { Login } from '@/components/Login';
 import { BottomNav } from '@/components/BottomNav';
 import { Header } from '@/components/Header';
+import { useGroup } from '@/context/GroupContext';
 
 export default function HomeScreen() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+  const { group } = useGroup();
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -40,7 +42,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.appContainer}>
         {/* App Header */}
-        <Header syncStatus={syncStatus} />
+        <Header syncStatus={syncStatus} groupName={group?.name} />
 
         {/* Main Content Area */}
         <View style={styles.content}>

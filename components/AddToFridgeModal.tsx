@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { foodService } from '../services/food.service';
+import * as ImagePicker from 'expo-image-picker';
 
 interface AddToFridgeModalProps {
   isOpen: boolean;
@@ -12,7 +13,6 @@ interface AddToFridgeModalProps {
 export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModalProps) {
   const [quantity, setQuantity] = useState('1');
   const [selectedUnit, setSelectedUnit] = useState('kg');
-  // const [selectedLocation, setSelectedLocation] = useState(''); // Removed as per plan
   const [selectedQuickDate, setSelectedQuickDate] = useState('3days');
   const [itemName, setItemName] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -21,12 +21,13 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
   // Data State
   const [units, setUnits] = useState<string[]>(['kg', 'g', 'l', 'ml', 'quả', 'hộp', 'chai', 'gói', 'bó']);
   const [categories, setCategories] = useState<string[]>([]);
-  const [foods, setFoods] = useState<{ name: string; unit: string }[]>([]); // Store name and unit
+  const [foods, setFoods] = useState<{ name: string; unit: string }[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Logic State
   const [isNewItem, setIsNewItem] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   const quickDates = [
     { id: '3days', label: '+3 ngày', days: 3 },
@@ -34,7 +35,6 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
     { id: '1month', label: '+1 tháng', days: 30 },
   ];
 
-  // Load units, categories and foods from API when modal opens
   useEffect(() => {
     if (isOpen) {
       loadDataFromAPI();
@@ -45,24 +45,18 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
   const loadDataFromAPI = async () => {
     try {
       setIsLoadingData(true);
-
-      // Load units
       const unitsData = await foodService.getUnitsAsStrings();
       if (unitsData.length > 0) {
         setUnits(unitsData);
         setSelectedUnit(unitsData[0]);
       }
-
-      // Load categories
       const categoriesData = await foodService.getCategoriesAsStrings();
       if (categoriesData.length > 0) setCategories(categoriesData);
 
-      // Load foods for suggestions
       const foodsInGroup = await foodService.getFoodsInGroup();
       setFoods(foodsInGroup.map((f) => ({ name: f.name, unit: f.unit || 'kg' })));
     } catch (error) {
       console.error('Load data error:', error);
-      // Keep default values if API fails
     } finally {
       setIsLoadingData(false);
     }
@@ -75,15 +69,12 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
   const handleNameChange = (text: string) => {
     setItemName(text);
     setShowSuggestions(text.length > 0);
-
-    // Check if item exists exact match case-insensitive
     const existingFood = foods.find(f => f.name.toLowerCase() === text.toLowerCase());
     if (existingFood) {
       setIsNewItem(false);
-      setSelectedUnit(existingFood.unit); // Auto-set unit
+      setSelectedUnit(existingFood.unit);
     } else {
       setIsNewItem(true);
-      // If switching to new item, reset category if needed, or keep previous
       if (!selectedCategory && categories.length > 0) setSelectedCategory(categories[0]);
     }
   };
@@ -91,7 +82,6 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
   const handleSelectSuggestion = (name: string) => {
     setItemName(name);
     setShowSuggestions(false);
-
     const existingFood = foods.find(f => f.name === name);
     if (existingFood) {
       setIsNewItem(false);
@@ -108,7 +98,6 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
   const calculateExpiryDate = () => {
     const selected = quickDates.find((d) => d.id === selectedQuickDate);
     if (!selected) return new Date().toISOString();
-
     const date = new Date();
     date.setDate(date.getDate() + selected.days);
     return date.toISOString();
@@ -121,11 +110,24 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
     setSelectedQuickDate('3days');
     setShowSuggestions(false);
     setIsNewItem(true);
+    setImageUri(null);
     if (categories.length > 0) setSelectedCategory(categories[0]);
   };
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
   const handleSubmit = async () => {
-    // Validation
     if (!itemName.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập tên món');
       return;
@@ -139,14 +141,13 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
     try {
       setIsSubmitting(true);
 
-      // If new item, create food first
       if (isNewItem) {
         await foodService.createFood({
           name: itemName.trim(),
           foodCategoryName: selectedCategory,
-          unitName: selectedUnit
+          unitName: selectedUnit,
+          image: imageUri || undefined
         });
-        // Refresh local foods list after create? Optional but good for consistency
         const newFood = { name: itemName.trim(), unit: selectedUnit };
         setFoods([...foods, newFood]);
       }
@@ -154,8 +155,6 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
       await onSubmit({
         foodName: itemName.trim(),
         quantity: parseInt(quantity) || 1,
-        // unit: selectedUnit, // No need to send unit if backend ignores it for existing, but for new item we just created it with this unit.
-        // location: selectedLocation, // Backend ignores
         expiredAt: calculateExpiryDate(),
       });
 
@@ -177,7 +176,6 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Thêm đồ vào tủ</Text>
             <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
@@ -186,6 +184,21 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Image Picker */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Hình ảnh (Tùy chọn)</Text>
+              <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.pickedImage} />
+                ) : (
+                  <View style={styles.placeholderImage}>
+                    <Ionicons name="camera-outline" size={24} color="#9CA3AF" />
+                    <Text style={styles.uploadText}>Chọn ảnh</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
             {/* Item Name */}
             <View style={styles.section}>
               <Text style={styles.label}>Tên món *</Text>
@@ -195,10 +208,9 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
                 placeholderTextColor="#9CA3AF"
                 value={itemName}
                 onChangeText={(text) => handleNameChange(text)}
-                autoFocus
+                // autoFocus // Removed autofocus to prevent keyboard jar with modal
                 editable={!isSubmitting}
               />
-              {/* Suggestions */}
               {showSuggestions && filteredSuggestions.length > 0 && (
                 <View style={styles.suggestions}>
                   {filteredSuggestions.map((suggestion, index) => (
@@ -276,7 +288,7 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
                   </TouchableOpacity>
                 </View>
 
-                {/* Unit Selection - readonly if existing item */}
+                {/* Unit Selection */}
                 <View style={styles.unitPicker}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {isNewItem ? (
@@ -378,7 +390,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '70%',
+    maxHeight: '90%', // Increased for Image Picker
   },
   header: {
     flexDirection: 'row',
@@ -404,6 +416,32 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 8,
     fontWeight: '500',
+  },
+  // Image Picker Styles
+  imagePickerButton: {
+    height: 120,
+    width: 120,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  pickedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
   input: {
     borderWidth: 1,
@@ -502,35 +540,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '500',
   },
-  locationGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  locationButton: {
-    flex: 1,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationButtonActive: {
-    borderColor: '#16A34A',
-    backgroundColor: '#D1FAE5',
-  },
-  locationIcon: {
-    fontSize: 24,
-  },
-  locationText: {
-    fontSize: 12,
-    color: '#374151',
-  },
   actions: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 24, // Extra padding for bottom
   },
   cancelButton: {
     flex: 1,

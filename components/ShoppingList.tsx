@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { shoppingService, ShoppingItem } from '../services/shopping.service';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
@@ -138,6 +138,12 @@ export function ShoppingList() {
                     <Text style={styles.itemNameDone}>
                       {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
                     </Text>
+                    {typeof item.foodId === 'object' && item.foodId.image && (
+                      <Image
+                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        style={styles.itemImage}
+                      />
+                    )}
                     <Text style={styles.itemQuantity}>
                       {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
                     </Text>
@@ -173,6 +179,12 @@ export function ShoppingList() {
                     <Text style={styles.itemNameChecked}>
                       {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
                     </Text>
+                    {typeof item.foodId === 'object' && item.foodId.image && (
+                      <Image
+                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        style={styles.itemImage}
+                      />
+                    )}
                     <Text style={styles.itemQuantity}>
                       {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
                     </Text>
@@ -300,6 +312,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#111827',
     textDecorationLine: 'none',
+  },
+  itemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginTop: 4,
   },
   itemNameChecked: {
     color: '#9CA3AF',

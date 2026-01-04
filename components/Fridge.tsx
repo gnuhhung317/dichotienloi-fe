@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fridgeService, FridgeItem } from '../services/fridge.service';
 import { AddToFridgeModal } from './AddToFridgeModal';
-
+import { AddToShoppingListModal } from './AddToShoppingListModal';
 import { foodService } from '../services/food.service';
+import { shoppingService } from '../services/shopping.service';
 
 export function Fridge() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -12,6 +13,7 @@ export function Fridge() {
   const [isLoading, setIsLoading] = useState(true);
   const [items, setItems] = useState<FridgeItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showShoppingListModal, setShowShoppingListModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Categories state
@@ -101,6 +103,63 @@ export function Fridge() {
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào tủ');
       console.error('Add fridge item error:', error);
+    }
+  };
+
+  const handleAddToShoppingList = async (data: { foodId: string; quantity: number }) => {
+    try {
+      await shoppingService.addItemToShoppingList({
+        foodId: data.foodId,
+        quantity: data.quantity
+      });
+      setShowShoppingListModal(false);
+      Alert.alert('Thành công', 'Đã thêm vào danh sách mua sắm');
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào danh sách');
+    }
+  };
+
+  // Consume Modal State
+  const [showConsumeModal, setShowConsumeModal] = useState(false);
+  const [selectedConsumeItem, setSelectedConsumeItem] = useState<{ id: string; name: string; maxQuantity: number; unit: string } | null>(null);
+  const [consumeQuantity, setConsumeQuantity] = useState('1');
+
+  const handleOpenConsumeModal = (item: FridgeItem) => {
+    setSelectedConsumeItem({
+      id: item._id,
+      name: typeof item.foodId === 'object' ? item.foodId.name : 'Món ăn',
+      maxQuantity: item.quantity,
+      unit: typeof item.unitId === 'object' ? item.unitId.name : ''
+    });
+    setConsumeQuantity('1');
+    setShowConsumeModal(true);
+  };
+
+  const handleConfirmConsume = async () => {
+    if (!selectedConsumeItem) return;
+
+    const quantity = parseFloat(consumeQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      Alert.alert('Lỗi', 'Vui lòng nhập số lượng hợp lệ');
+      return;
+    }
+
+    if (quantity > selectedConsumeItem.maxQuantity) {
+      Alert.alert('Lỗi', `Số lượng không được vượt quá ${selectedConsumeItem.maxQuantity}`);
+      return;
+    }
+
+    try {
+      await fridgeService.takeOutFridgeItem({
+        itemId: selectedConsumeItem.id,
+        quantity: quantity,
+        action: 'consume'
+      });
+      await loadFridgeItems();
+      setShowConsumeModal(false);
+      Alert.alert('Thành công', `Đã dùng ${quantity} ${selectedConsumeItem.unit} ${selectedConsumeItem.name}`);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thực hiện');
     }
   };
 
@@ -225,20 +284,31 @@ export function Fridge() {
           {viewMode === 'grid' ? (
             <View style={styles.gridContainer}>
               {filteredItems.map((item) => (
-                <TouchableOpacity
+                <View
                   key={item._id}
                   style={styles.gridItem}
-                  onLongPress={() => handleDeleteItem(item._id)}
-                  activeOpacity={0.7}
                 >
-                  <View style={styles.gridItemImageContainer}>
-                    <Text style={styles.foodEmoji}>🥬</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.gridItemImageContainer}
+                    onPress={() => { /* View details? */ }}
+                    activeOpacity={0.9}
+                  >
+                    {typeof item.foodId === 'object' && item.foodId.image ? (
+                      <Image
+                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        style={styles.gridItemImage}
+                      />
+                    ) : (
+                      <Text style={styles.foodEmoji}>🥬</Text>
+                    )}
+                  </TouchableOpacity>
+
                   <View style={[styles.statusBadge, getStatusStyle(item.expiredAt)]}>
                     <Text style={styles.statusText}>
                       {fridgeService.formatExpiryDisplay(item.expiredAt)}
                     </Text>
                   </View>
+
                   <View style={styles.gridItemInfo}>
                     <Text style={styles.gridItemName} numberOfLines={2}>
                       {typeof item.foodId === 'object' ? item.foodId?.name : 'Loading...'}
@@ -246,22 +316,50 @@ export function Fridge() {
                     <Text style={styles.gridItemQuantity}>
                       {item.quantity} {typeof item.unitId === 'object' ? item.unitId?.name : ''}
                     </Text>
+
+                    {/* Actions Row */}
+                    <View style={styles.actionsRow}>
+                      <TouchableOpacity
+                        style={styles.actionButtonConsume}
+                        onPress={() => handleOpenConsumeModal(item)}
+                      >
+                        <Ionicons name="restaurant-outline" size={16} color="#047857" />
+                        <Text style={styles.actionTextConsume}>Dùng</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.actionButtonDelete}
+                        onPress={() => handleDeleteItem(item._id)}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </TouchableOpacity>
+                </View>
               ))}
             </View>
           ) : (
             <View style={styles.listContainer}>
               {filteredItems.map((item) => (
-                <TouchableOpacity
+                <View
                   key={item._id}
                   style={styles.listItem}
-                  onLongPress={() => handleDeleteItem(item._id)}
-                  activeOpacity={0.7}
                 >
-                  <View style={styles.listItemImageContainer}>
-                    <Text style={styles.foodEmojiLarge}>🥬</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.listItemImageContainer}
+                    onPress={() => { /* View details? */ }}
+                    activeOpacity={0.9}
+                  >
+                    {typeof item.foodId === 'object' && item.foodId.image ? (
+                      <Image
+                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        style={styles.gridItemImage}
+                      />
+                    ) : (
+                      <Text style={styles.foodEmojiLarge}>🥬</Text>
+                    )}
+                  </TouchableOpacity>
+
                   <View style={styles.listItemInfo}>
                     <Text style={styles.listItemName}>
                       {typeof item.foodId === 'object' ? item.foodId?.name : 'Loading...'}
@@ -269,27 +367,54 @@ export function Fridge() {
                     <Text style={styles.listItemQuantity}>
                       {item.quantity} {typeof item.unitId === 'object' ? item.unitId?.name : ''}
                     </Text>
+                    {/* Actions Row - List View */}
+                    <View style={styles.actionsRow}>
+                      <TouchableOpacity
+                        style={styles.actionButtonConsume}
+                        onPress={() => handleOpenConsumeModal(item)}
+                      >
+                        <Ionicons name="restaurant-outline" size={16} color="#047857" />
+                        <Text style={styles.actionTextConsume}>Dùng</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionButtonDelete}
+                        onPress={() => handleDeleteItem(item._id)}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
+
                   </View>
                   <View style={[styles.statusBadge, getStatusStyle(item.expiredAt)]}>
                     <Text style={styles.statusText}>
                       {fridgeService.formatExpiryDisplay(item.expiredAt)}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </View>
               ))}
             </View>
           )}
         </ScrollView>
       )}
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setShowAddModal(true)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* FABs */}
+      <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={[styles.fab, styles.fabSecondary]}
+          onPress={() => setShowShoppingListModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="cart" size={24} color="#16A34A" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
       {/* Add to Fridge Modal */}
       <AddToFridgeModal
@@ -297,6 +422,85 @@ export function Fridge() {
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddFridgeItem}
       />
+
+      {/* Add To Shopping List Modal */}
+      <AddToShoppingListModal
+        isOpen={showShoppingListModal}
+        onClose={() => setShowShoppingListModal(false)}
+        onSubmit={handleAddToShoppingList}
+      />
+
+      {/* Consume Modal */}
+      <Modal
+        visible={showConsumeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConsumeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.consumeModalContent}>
+            <Text style={styles.consumeModalTitle}>Dùng thực phẩm</Text>
+            {selectedConsumeItem && (
+              <Text style={styles.consumeModalSubtitle}>
+                Bạn muốn dùng bao nhiêu {selectedConsumeItem.unit} {selectedConsumeItem.name}?
+              </Text>
+            )}
+
+            <View style={styles.consumeInputContainer}>
+              <TouchableOpacity
+                style={styles.quantityBtn}
+                onPress={() => {
+                  const val = parseFloat(consumeQuantity) || 0;
+                  setConsumeQuantity(Math.max(1, val - 1).toString());
+                }}
+              >
+                <Ionicons name="remove" size={20} color="#6B7280" />
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.consumeInput}
+                keyboardType="numeric"
+                value={consumeQuantity}
+                onChangeText={setConsumeQuantity}
+                autoFocus
+              />
+
+              <TouchableOpacity
+                style={styles.quantityBtn}
+                onPress={() => {
+                  const val = parseFloat(consumeQuantity) || 0;
+                  if (selectedConsumeItem && val < selectedConsumeItem.maxQuantity) {
+                    setConsumeQuantity((val + 1).toString());
+                  }
+                }}
+              >
+                <Ionicons name="add" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedConsumeItem && (
+              <Text style={styles.maxQuantityText}>
+                Hiện có: {selectedConsumeItem.maxQuantity} {selectedConsumeItem.unit}
+              </Text>
+            )}
+
+            <View style={styles.consumeModalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelBtn]}
+                onPress={() => setShowConsumeModal(false)}
+              >
+                <Text style={styles.cancelBtnText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.confirmBtn]}
+                onPress={handleConfirmConsume}
+              >
+                <Text style={styles.confirmBtnText}>Xác nhận</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -408,6 +612,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#6B7280',
+    marginBottom: 8,
   },
   itemsContainer: {
     flex: 1,
@@ -444,6 +649,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
+    zIndex: 10,
+    backgroundColor: '#FFFFFF',
   },
   statusFresh: {
     backgroundColor: '#D1FAE5',
@@ -500,6 +707,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
+    overflow: 'hidden',
   },
   foodEmojiLarge: {
     fontSize: 36,
@@ -517,10 +725,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-  fab: {
+  fabContainer: {
     position: 'absolute',
     bottom: 96,
     right: 32,
+    alignItems: 'center',
+    gap: 16,
+  },
+  fab: {
     width: 56,
     height: 56,
     backgroundColor: '#16A34A',
@@ -532,5 +744,127 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  fabSecondary: {
+    backgroundColor: '#FFFFFF',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  gridItemImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+    alignItems: 'center',
+  },
+  actionButtonConsume: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  actionTextConsume: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#047857',
+  },
+  actionButtonDelete: {
+    padding: 6,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  consumeModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  consumeModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  consumeModalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  consumeInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  consumeInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    width: 80,
+    paddingVertical: 8,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  quantityBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  maxQuantityText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 24,
+  },
+  consumeModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#F3F4F6',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  confirmBtn: {
+    backgroundColor: '#16A34A',
+  },
+  confirmBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
