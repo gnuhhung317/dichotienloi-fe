@@ -39,12 +39,24 @@ export interface FoodLog {
 
 class FoodService {
   /**
+   * Helper normalize
+   */
+  private normalizeFood(item: any): Food {
+    if (!item) return item;
+    return {
+      ...item,
+      _id: item._id ? item._id.toString() : item._id,
+    };
+  }
+
+  /**
    * Lấy danh sách thực phẩm của nhóm
    */
   async getFoodsInGroup(): Promise<Food[]> {
     try {
       const response = await api.get('/food');
-      return response.data.data || response.data;
+      const data = response.data.data || response.data;
+      return Array.isArray(data) ? data.map((f: any) => this.normalizeFood(f)) : [];
     } catch (error) {
       throw error;
     }
@@ -74,7 +86,7 @@ class FoodService {
         // Fetch the image and convert to blob
         const response = await fetch(data.image);
         const blob = await response.blob();
-        
+
         // Append blob to formData with proper format
         formData.append('image', blob, filename);
 
@@ -83,10 +95,10 @@ class FoodService {
             'Content-Type': 'multipart/form-data',
           },
         });
-        return uploadResponse.data.data || uploadResponse.data;
+        return this.normalizeFood(uploadResponse.data.data || uploadResponse.data);
       } else {
         const response = await api.post('/food', data);
-        return response.data.data || response.data;
+        return this.normalizeFood(response.data.data || response.data);
       }
     } catch (error) {
       throw error;
@@ -117,7 +129,7 @@ class FoodService {
         // Fetch the image and convert to blob
         const response = await fetch(data.image);
         const blob = await response.blob();
-        
+
         // Append blob to formData
         formData.append('image', blob, filename);
 
@@ -126,10 +138,10 @@ class FoodService {
             'Content-Type': 'multipart/form-data',
           },
         });
-        return uploadResponse.data.data || uploadResponse.data;
+        return this.normalizeFood(uploadResponse.data.data || uploadResponse.data);
       } else {
         const response = await api.put('/food', data);
-        return response.data.data || response.data;
+        return this.normalizeFood(response.data.data || response.data);
       }
     } catch (error) {
       throw error;

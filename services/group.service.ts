@@ -49,11 +49,32 @@ class GroupService {
   }
 
   /**
+   * Helper normalize
+   */
+  private normalizeMember(member: any): GroupMember {
+    if (!member) return member;
+    return {
+      ...member,
+      _id: member._id ? member._id.toString() : member._id,
+      userId: member.userId && typeof member.userId === 'object' && member.userId._id
+        ? member.userId._id.toString() // Handle populated user object if needed, though interface says string
+        : (member.userId ? member.userId.toString() : member.userId)
+    };
+  }
+
+  /**
    * Lấy danh sách thành viên trong nhóm
    */
   async getMyGroupMembers(): Promise<GroupMembersResponse> {
     const response = await api.get<GroupMembersResponse>('/user/group');
-    return response.data;
+    const data = response.data;
+    if (data && Array.isArray(data.members)) {
+      return {
+        ...data,
+        members: data.members.map(m => this.normalizeMember(m))
+      };
+    }
+    return data;
   }
 
   /**

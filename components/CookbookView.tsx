@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native'; // If available, or use useEffect
@@ -16,11 +16,12 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sortByAvailability, setSortByAvailability] = useState(false);
 
   const fetchRecipes = async () => {
     try {
       setIsLoading(true);
-      const data = await recipeService.getRecipes(true); // Default to group recipes
+      const data = await recipeService.getRecipes(true, sortByAvailability); // Default to group recipes
       setRecipes(data);
     } catch (error) {
       console.error(error);
@@ -29,11 +30,11 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
     }
   };
 
-  // Fetch when component mounts or focuses (simplified for now with mount)
-  // In a real nav stack, useFocusEffect is better. assuming simple mount for now.
-  useState(() => {
+
+  // Re-fetch when sort option changes
+  useEffect(() => {
     fetchRecipes();
-  });
+  }, [sortByAvailability]);
 
   const renderRecipeItem = ({ item }: { item: Recipe }) => (
     <TouchableOpacity
@@ -55,6 +56,21 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
             <Ionicons name="restaurant-outline" size={12} color="#6B7280" />
             <Text style={styles.metaText}>{item.ingredients?.length || 0} nguyên liệu</Text>
           </View>
+          {item.matchPercentage !== undefined && (
+            <View style={styles.metaItem}>
+              <Ionicons
+                name="nutrition"
+                size={12}
+                color={item.matchPercentage >= 100 ? '#16A34A' : item.matchPercentage >= 50 ? '#F59E0B' : '#EF4444'}
+              />
+              <Text style={[styles.metaText, {
+                color: item.matchPercentage >= 100 ? '#16A34A' : item.matchPercentage >= 50 ? '#F59E0B' : '#EF4444',
+                fontWeight: '500'
+              }]}>
+                {item.matchCount}/{item.totalIngredients} có sẵn
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -70,6 +86,16 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.headerFilter}>
+        <TouchableOpacity
+          style={[styles.filterButton, sortByAvailability && styles.filterButtonActive]}
+          onPress={() => setSortByAvailability(!sortByAvailability)}
+        >
+          <Ionicons name={sortByAvailability ? "checkbox" : "square-outline"} size={20} color={sortByAvailability ? "#16A34A" : "#6B7280"} />
+          <Text style={[styles.filterText, sortByAvailability && styles.filterTextActive]}>Gợi ý từ tủ lạnh</Text>
+        </TouchableOpacity>
+      </View>
+
       {recipes.length > 0 ? (
         <FlatList
           data={recipes}
@@ -206,4 +232,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 8,
   },
+  headerFilter: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterButtonActive: {
+
+  },
+  filterText: {
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  filterTextActive: {
+    color: '#16A34A',
+    fontWeight: '600',
+  }
 });

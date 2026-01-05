@@ -56,6 +56,7 @@ class ShoppingService {
     if (!item) return item;
     return {
       ...item,
+      _id: item._id ? item._id.toString() : item._id,
       quantity: item.quantity?.$numberDecimal ? parseFloat(item.quantity.$numberDecimal) : item.quantity
     };
   }

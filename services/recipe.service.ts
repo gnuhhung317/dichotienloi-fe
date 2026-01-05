@@ -22,6 +22,10 @@ export interface Recipe {
     ingredients: RecipeIngredient[];
     created_at?: string;
     image?: string; // Optional image field
+    matchCount?: number;
+    totalIngredients?: number;
+    matchPercentage?: number;
+    missingIngredients?: any[];
 }
 
 export interface CreateRecipeDTO {
@@ -36,10 +40,10 @@ export interface CreateRecipeDTO {
 }
 
 class RecipeService {
-    async getRecipes(groupOnly: boolean = true): Promise<Recipe[]> {
+    async getRecipes(groupOnly: boolean = true, sortByAvailability: boolean = false): Promise<Recipe[]> {
         try {
             const response = await api.get('/recipe', {
-                params: { groupOnly }
+                params: { groupOnly, sortByAvailability }
             });
             return response.data;
         } catch (error) {
