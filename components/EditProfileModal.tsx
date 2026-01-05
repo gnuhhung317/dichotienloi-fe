@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/user.service';
 
@@ -20,6 +21,7 @@ interface EditProfileModalProps {
 }
 
 export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModalProps) {
+  const { t } = useTranslation();
   const { user, refreshUser } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -34,19 +36,19 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên');
+      Alert.alert(t('modal.error'), t('modal.pleaseEnterName'));
       return;
     }
 
     if (!email.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email');
+      Alert.alert(t('modal.error'), t('modal.pleaseEnterEmail'));
       return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Lỗi', 'Email không hợp lệ');
+      Alert.alert(t('modal.error'), t('auth.invalidEmail'));
       return;
     }
 
@@ -60,11 +62,11 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
       // Refresh user data in context
       await refreshUser();
 
-      Alert.alert('Thành công', 'Đã cập nhật thông tin!');
+      Alert.alert(t('modal.success'), t('modal.updatedInfo'));
       onSuccess?.();
       onClose();
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật thông tin');
+      Alert.alert(t('modal.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +91,7 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Chỉnh sửa thông tin</Text>
+            <Text style={styles.title}>{t('profile.editProfile')}</Text>
             <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
@@ -98,10 +100,10 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
           {/* Content */}
           <View style={styles.content}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Họ và tên</Text>
+              <Text style={styles.label}>{t('profile.name')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Nhập họ và tên"
+                placeholder={t('profile.name')}
                 value={name}
                 onChangeText={setName}
                 editable={!isLoading}
@@ -109,10 +111,10 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t('auth.email')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="email@example.com"
+                placeholder={t('auth.emailPlaceholder')}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -124,7 +126,7 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
             <View style={styles.note}>
               <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
               <Text style={styles.noteText}>
-                Thay đổi email có thể yêu cầu xác thực lại
+                {t('profile.emailChangeNote')}
               </Text>
             </View>
           </View>
@@ -136,7 +138,7 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
               onPress={handleCancel}
               disabled={isLoading}
             >
-              <Text style={styles.cancelText}>Hủy</Text>
+              <Text style={styles.cancelText}>{t('modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.saveButton, isLoading && styles.buttonDisabled]}
@@ -146,7 +148,7 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }: EditProfileModa
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.saveText}>Lưu</Text>
+                <Text style={styles.saveText}>{t('modal.save')}</Text>
               )}
             </TouchableOpacity>
           </View>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
 
 interface InviteMemberModalProps {
@@ -9,29 +10,30 @@ interface InviteMemberModalProps {
 }
 
 export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
+  const { t } = useTranslation();
   const { addMember } = useGroup();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAddMember = async () => {
     if (!email.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập Email');
+      Alert.alert(t('modal.error'), t('modal.pleaseEnterEmail'));
       return;
     }
 
     if (!email.includes('@')) {
-      Alert.alert('Lỗi', 'Email không hợp lệ');
+      Alert.alert(t('modal.error'), t('auth.invalidEmail'));
       return;
     }
 
     setIsLoading(true);
     try {
       await addMember(email.trim());
-      Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
+      Alert.alert(t('modal.success'), t('modal.addedMemberToGroup'));
       setEmail('');
       onClose();
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Không thể thêm thành viên');
+      Alert.alert(t('modal.error'), error.message || t('modal.cannotAddMember'));
     } finally {
       setIsLoading(false);
     }
@@ -47,17 +49,17 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <View style={styles.header}>
-            <Text style={styles.title}>Mời thành viên</Text>
+            <Text style={styles.title}>{t('profile.inviteMember')}</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.label}>Nhập Email thành viên</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="ví dụ: abc@gmail.com"
+              placeholder={t('auth.emailPlaceholder')}
               value={email}
               onChangeText={setEmail}
               editable={!isLoading}
@@ -76,7 +78,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
               ) : (
                 <>
                   <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.addButtonText}>Thêm vào nhóm</Text>
+                  <Text style={styles.addButtonText}>{t('profile.addToGroup')}</Text>
                 </>
               )}
             </TouchableOpacity>

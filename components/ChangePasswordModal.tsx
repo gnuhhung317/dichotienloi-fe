@@ -20,7 +20,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
 
     const handleSubmit = async () => {
         if (!oldPassword || !newPassword || !confirmPassword) {
-            Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
+            Alert.alert(t('modal.error'), t('modal.pleaseEnterAllInfo'));
             return;
         }
 

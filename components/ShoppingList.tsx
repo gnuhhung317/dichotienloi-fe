@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { shoppingService, ShoppingItem, ShoppingList as ShoppingListType } from '../services/shopping.service';
 import groupService, { GroupMember } from '../services/group.service';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
@@ -10,6 +11,7 @@ import { API_CONFIG } from '../config/app.config';
 import { useGroup } from '../context/GroupContext';
 
 export function ShoppingList() {
+  const { t } = useTranslation();
   const { hasGroup } = useGroup();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
@@ -54,7 +56,7 @@ export function ShoppingList() {
       const shoppingItems = await shoppingService.getShoppingItems(dateStr);
       setItems(shoppingItems);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tải danh sách mua sắm');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
       console.error('Load shopping items error:', error);
     } finally {
       setIsLoading(false);
@@ -69,10 +71,10 @@ export function ShoppingList() {
         date: selectedDate.toISOString()
       });
       setItems([...items, newItem]);
-      Alert.alert('Thành công', 'Đã thêm vào danh sách mua');
+      Alert.alert(t('common.success'), t('shopping.itemAdded'));
       setShowAddModal(false);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm sản phẩm');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
       console.error('Add item error:', error);
     }
   };
@@ -81,9 +83,9 @@ export function ShoppingList() {
     try {
       const updatedItem = await shoppingService.updateItem({ itemId, newQuantity, assignedTo });
       setItems(items.map(item => item._id === itemId ? updatedItem : item));
-      Alert.alert('Thành công', 'Đã cập nhật sản phẩm');
+      Alert.alert(t('common.success'), t('shopping.itemUpdated'));
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật sản phẩm');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
       console.error('Update item error:', error);
     }
   };
@@ -107,17 +109,17 @@ export function ShoppingList() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert('Xóa', 'Bạn chắc chắn muốn xóa sản phẩm này?', [
-      { text: 'Hủy', onPress: () => { } },
+    Alert.alert(t('modal.delete'), t('modal.deleteProduct'), [
+      { text: t('modal.cancel'), onPress: () => { } },
       {
-        text: 'Xóa',
+        text: t('modal.delete'),
         onPress: async () => {
           try {
             await shoppingService.deleteItem(itemId);
             setItems(items.filter((item) => item._id !== itemId));
-            Alert.alert('Thành công', 'Đã xóa sản phẩm');
+            Alert.alert(t('modal.success'), t('modal.deletedProduct'));
           } catch (error: any) {
-            Alert.alert('Lỗi', error.response?.data?.message || 'Không thể xóa');
+            Alert.alert(t('modal.error'), error.response?.data?.message || t('modal.cannotDelete'));
             console.error('Delete item error:', error);
           }
         },
@@ -162,8 +164,8 @@ export function ShoppingList() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="people-outline" size={64} color="#D1D5DB" />
-        <Text style={styles.emptyText}>Chưa tham gia nhóm</Text>
-        <Text style={styles.emptySubText}>Vui lòng tham gia một nhóm để quản lý mua sắm</Text>
+        <Text style={styles.emptyText}>{t('home.noGroup')}</Text>
+        <Text style={styles.emptySubText}>{t('modal.requireGroupForShopping')}</Text>
       </View>
     );
   }
@@ -278,7 +280,7 @@ export function ShoppingList() {
       {items.length > 0 && (
         <View style={styles.progressHeader}>
           <View style={styles.progressTitleRow}>
-            <Text style={styles.progressTitle}>Danh sách mua sắm</Text>
+            <Text style={styles.progressTitle}>{t('shopping.shoppingListTitle')}</Text>
             <Text style={styles.progressCount}>
               {boughtItems.length}/{items.length}
             </Text>
@@ -299,15 +301,15 @@ export function ShoppingList() {
           {items.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="basket-outline" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>Danh sách trống</Text>
-              <Text style={styles.emptySubText}>Chọn ngày khác hoặc thêm món mới</Text>
+              <Text style={styles.emptyText}>{t('shopping.emptyList')}</Text>
+              <Text style={styles.emptySubText}>{t('modal.chooseOtherDate')}</Text>
             </View>
           ) : (
             <>
               {/* Chưa mua */}
               {unboughtItems.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Chưa mua ({unboughtItems.length})</Text>
+                  <Text style={styles.sectionTitle}>{t('shopping.pending')} ({unboughtItems.length})</Text>
                   {unboughtItems.map((item) => renderItem(item, false))}
                 </>
               )}
@@ -316,7 +318,7 @@ export function ShoppingList() {
               {boughtItems.length > 0 && (
                 <>
                   <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
-                    Đã mua ({boughtItems.length})
+                    {t('shopping.purchased')} ({boughtItems.length})
                   </Text>
                   {boughtItems.map((item) => renderItem(item, true))}
                 </>

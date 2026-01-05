@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { recipeService, Recipe } from '../services/recipe.service';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { API_CONFIG } from '../config/app.config';
@@ -19,6 +20,7 @@ interface SuggestedRecipe extends Recipe {
 }
 
 export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
+    const { t } = useTranslation();
     const [recipes, setRecipes] = useState<SuggestedRecipe[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -41,7 +43,7 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
             const data = await recipeService.suggestRecipes();
             setRecipes(data);
         } catch (error) {
-            Alert.alert('Lỗi', 'Không thể tải gợi ý món ăn');
+            Alert.alert(t('common.error'), t('errors.somethingWentWrong'));
         } finally {
             setIsLoading(false);
         }
@@ -67,12 +69,12 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
                 date: targetDate.toISOString(),
                 mealType: targetMealType
             });
-            Alert.alert('Thành công', 'Đã thêm món ăn vào lịch');
+            Alert.alert(t('common.success'), t('meal.mealAdded'));
             setShowAddDialog(false);
             setRecipeToAdd(null);
             if (onAddSuccess) onAddSuccess();
         } catch (error) {
-            Alert.alert('Lỗi', 'Không thể thêm món ăn');
+            Alert.alert(t('common.error'), t('errors.somethingWentWrong'));
         }
     };
 
@@ -87,7 +89,7 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
                 <View style={styles.matchInfo}>
                     <Ionicons name="nutrition" size={16} color={getMatchColor(item.matchPercentage)} />
                     <Text style={[styles.matchText, { color: getMatchColor(item.matchPercentage) }]}>
-                        {item.matchCount}/{item.totalIngredients} nguyên liệu có sẵn
+                        {item.matchCount}/{item.totalIngredients} {t('suggestion.ingredientsAvailable')}
                     </Text>
                 </View>
                 <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
@@ -130,7 +132,7 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
             ) : (
                 <View style={styles.centerContainer}>
                     <Ionicons name="basket-outline" size={64} color="#D1D5DB" />
-                    <Text style={styles.emptyText}>Không tìm thấy món ăn phù hợp với nguyên liệu trong tủ lạnh</Text>
+                    <Text style={styles.emptyText}>{t('suggestion.noMatchingRecipes')}</Text>
                 </View>
             )}
 
@@ -153,11 +155,11 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
             >
                 <View style={styles.dialogOverlay}>
                     <View style={styles.dialog}>
-                        <Text style={styles.dialogTitle}>Thêm vào lịch ăn</Text>
+                        <Text style={styles.dialogTitle}>{t('modal.addToMealPlan')}</Text>
                         {recipeToAdd && <Text style={styles.dialogSubtitle}>{recipeToAdd.name}</Text>}
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Ngày:</Text>
+                            <Text style={styles.label}>{t('meal.date')}:</Text>
                             <TouchableOpacity
                                 style={styles.dateButton}
                                 onPress={() => setShowDatePicker(true)}
@@ -178,7 +180,7 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
                         )}
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Bữa:</Text>
+                            <Text style={styles.label}>{t('meal.mealType')}:</Text>
                             <View style={styles.mealTypeContainer}>
                                 {['breakfast', 'lunch', 'dinner'].map((type) => (
                                     <TouchableOpacity
@@ -187,7 +189,7 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
                                         onPress={() => setTargetMealType(type)}
                                     >
                                         <Text style={[styles.mealTypeText, targetMealType === type && styles.mealTypeTextActive]}>
-                                            {type === 'breakfast' ? 'Sáng' : type === 'lunch' ? 'Trưa' : 'Tối'}
+                                            {t(`meal.${type}`)}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
@@ -196,10 +198,10 @@ export function SuggestionView({ onAddSuccess }: SuggestionViewProps) {
 
                         <View style={styles.dialogActions}>
                             <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAddDialog(false)}>
-                                <Text style={styles.cancelButtonText}>Hủy</Text>
+                                <Text style={styles.cancelButtonText}>{t('modal.cancel')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.confirmButton} onPress={confirmAddToPlan}>
-                                <Text style={styles.confirmButtonText}>Thêm</Text>
+                                <Text style={styles.confirmButtonText}>{t('modal.add')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

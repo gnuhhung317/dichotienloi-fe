@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
 
 interface CreateGroupModalProps {
@@ -19,25 +20,26 @@ interface CreateGroupModalProps {
 }
 
 export function CreateGroupModal({ isOpen, onClose, onSuccess }: CreateGroupModalProps) {
+  const { t } = useTranslation();
   const { createGroup } = useGroup();
   const [groupName, setGroupName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm');
+      Alert.alert(t('modal.error'), t('modal.pleaseEnterGroupName'));
       return;
     }
 
     setIsLoading(true);
     try {
       await createGroup(groupName.trim());
-      Alert.alert('Thành công', 'Đã tạo nhóm thành công!');
+      Alert.alert(t('modal.success'), t('modal.createdGroupSuccess'));
       setGroupName('');
       onSuccess?.();
       onClose();
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Không thể tạo nhóm');
+      Alert.alert(t('modal.error'), error.message || t('errors.somethingWentWrong'));
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +56,7 @@ export function CreateGroupModal({ isOpen, onClose, onSuccess }: CreateGroupModa
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Tạo nhóm mới</Text>
+            <Text style={styles.title}>{t('profile.createGroup')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
@@ -62,17 +64,17 @@ export function CreateGroupModal({ isOpen, onClose, onSuccess }: CreateGroupModa
 
           {/* Content */}
           <View style={styles.content}>
-            <Text style={styles.label}>Tên nhóm</Text>
+            <Text style={styles.label}>{t('profile.groupName')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ví dụ: Gia đình Nguyễn"
+              placeholder={t('profile.groupNamePlaceholder')}
               value={groupName}
               onChangeText={setGroupName}
               autoFocus
               editable={!isLoading}
             />
             <Text style={styles.hint}>
-              Tạo nhóm để chia sẻ tủ lạnh và danh sách mua sắm với gia đình hoặc bạn bè
+              {t('profile.groupDescription')}
             </Text>
           </View>
 
@@ -83,7 +85,7 @@ export function CreateGroupModal({ isOpen, onClose, onSuccess }: CreateGroupModa
               onPress={onClose}
               disabled={isLoading}
             >
-              <Text style={styles.cancelText}>Hủy</Text>
+              <Text style={styles.cancelText}>{t('modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.createButton, isLoading && styles.buttonDisabled]}
@@ -93,7 +95,7 @@ export function CreateGroupModal({ isOpen, onClose, onSuccess }: CreateGroupModa
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.createText}>Tạo nhóm</Text>
+                <Text style={styles.createText}>{t('profile.createGroup')}</Text>
               )}
             </TouchableOpacity>
           </View>

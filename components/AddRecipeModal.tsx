@@ -243,7 +243,7 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess, initialData }: AddR
                             </TouchableOpacity>
                         </View>
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Tên món ăn *</Text>
+                            <Text style={styles.label}>{t('modal.recipeName')} *</Text>
                             <TextInput
                                 style={styles.input}
                                 value={name}

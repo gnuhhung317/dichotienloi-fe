@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native'; // If available, or use useEffect
+import { useTranslation } from 'react-i18next';
 import { recipeService, Recipe } from '../services/recipe.service';
 
 import { RecipeDetailModal } from './RecipeDetailModal';
@@ -12,16 +13,20 @@ interface CookbookViewProps {
 }
 
 export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
+  const { t } = useTranslation();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // State for tabs
+  const [activeTab, setActiveTab] = useState<'group' | 'discover'>('group');
   const [sortByAvailability, setSortByAvailability] = useState(false);
 
   const fetchRecipes = async () => {
     try {
       setIsLoading(true);
-      const data = await recipeService.getRecipes(true, sortByAvailability); // Default to group recipes
+      const groupOnly = activeTab === 'group';
+      const data = await recipeService.getRecipes(groupOnly, sortByAvailability);
       setRecipes(data);
     } catch (error) {
       console.error(error);
@@ -30,11 +35,10 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
     }
   };
 
-
-  // Re-fetch when sort option changes
+  // Re-fetch when sort or tab changes
   useEffect(() => {
     fetchRecipes();
-  }, [sortByAvailability]);
+  }, [sortByAvailability, activeTab]);
 
   const renderRecipeItem = ({ item }: { item: Recipe }) => (
     <TouchableOpacity
@@ -50,11 +54,13 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
       />
       <View style={styles.recipeContent}>
         <Text style={styles.recipeName}>{item.name}</Text>
-        <Text style={styles.recipeDescription} numberOfLines={2}>{item.description}</Text>
+        {item.description && item.description.trim() !== item.name.trim() && (
+          <Text style={styles.recipeDescription} numberOfLines={2}>{item.description}</Text>
+        )}
         <View style={styles.recipeMeta}>
           <View style={styles.metaItem}>
             <Ionicons name="restaurant-outline" size={12} color="#6B7280" />
-            <Text style={styles.metaText}>{item.ingredients?.length || 0} nguyên liệu</Text>
+            <Text style={styles.metaText}>{item.ingredients?.length || 0} {t('cookbook.ingredients')}</Text>
           </View>
           {item.matchPercentage !== undefined && (
             <View style={styles.metaItem}>
@@ -67,7 +73,7 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
                 color: item.matchPercentage >= 100 ? '#16A34A' : item.matchPercentage >= 50 ? '#F59E0B' : '#EF4444',
                 fontWeight: '500'
               }]}>
-                {item.matchCount}/{item.totalIngredients} có sẵn
+                {item.matchCount}/{item.totalIngredients} {t('fridge.all')}
               </Text>
             </View>
           )}
@@ -86,13 +92,28 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.tabHeader}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'group' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('group')}
+        >
+          <Text style={[styles.tabText, activeTab === 'group' && styles.tabTextActive]}>{t('cookbook.groupRecipes')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'discover' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('discover')}
+        >
+          <Text style={[styles.tabText, activeTab === 'discover' && styles.tabTextActive]}>{t('cookbook.discover')}</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.headerFilter}>
         <TouchableOpacity
           style={[styles.filterButton, sortByAvailability && styles.filterButtonActive]}
           onPress={() => setSortByAvailability(!sortByAvailability)}
         >
           <Ionicons name={sortByAvailability ? "checkbox" : "square-outline"} size={20} color={sortByAvailability ? "#16A34A" : "#6B7280"} />
-          <Text style={[styles.filterText, sortByAvailability && styles.filterTextActive]}>Gợi ý từ tủ lạnh</Text>
+          <Text style={[styles.filterText, sortByAvailability && styles.filterTextActive]}>{t('cookbook.filterByIngredients')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -115,16 +136,24 @@ export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
         >
           <View style={styles.emptyState}>
             <Ionicons name="book-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>Sổ tay công thức</Text>
-            <Text style={styles.emptyDescription}>Bạn chưa có công thức nào. Hãy thêm công thức mới!</Text>
+            <Text style={styles.emptyTitle}>
+              {activeTab === 'group' ? t('cookbook.emptyRecipes') : t('cookbook.emptyRecipes')}
+            </Text>
+            <Text style={styles.emptyDescription}>
+              {activeTab === 'group'
+                ? t('cookbook.addFirstRecipe')
+                : t('cookbook.addFirstRecipe')}
+            </Text>
           </View>
         </ScrollView>
       )}
 
       {/* Floating Action Button for Add */}
-      <TouchableOpacity style={styles.fab} onPress={onAddRecipe}>
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      {activeTab === 'group' && (
+        <TouchableOpacity style={styles.fab} onPress={onAddRecipe}>
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <RecipeDetailModal
         isOpen={showDetailModal}
@@ -146,6 +175,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  tabHeader: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: '#16A34A',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: '#16A34A',
+    fontWeight: '600',
   },
   centerContent: {
     justifyContent: 'center',

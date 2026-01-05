@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { recipeService, Recipe } from '../services/recipe.service';
 import { mealService } from '../services/meal.service';
 
@@ -13,12 +14,17 @@ interface AddMealModalProps {
 }
 
 export function AddMealModal({ isOpen, onClose, mealType, date, onSuccess }: AddMealModalProps) {
+  const { t } = useTranslation();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const mealLabels: Record<string, string> = { 'breakfast': 'Sáng', 'lunch': 'Trưa', 'dinner': 'Tối' };
+  const mealLabels: Record<string, string> = {
+    'breakfast': t('meal.breakfast'),
+    'lunch': t('meal.lunch'),
+    'dinner': t('meal.dinner')
+  };
 
   useEffect(() => {
     if (isOpen) {

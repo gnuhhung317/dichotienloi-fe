@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { AddMealModal } from './AddMealModal';
 import { CookbookView } from './CookbookView';
 import { AddRecipeModal } from './AddRecipeModal';
@@ -11,6 +12,7 @@ import { Recipe } from '../services/recipe.service';
 import { useGroup } from '../context/GroupContext';
 
 export function MealPlanner() {
+  const { t } = useTranslation();
   const { hasGroup } = useGroup();
   const [currentWeek, setCurrentWeek] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -31,7 +33,11 @@ export function MealPlanner() {
 
   const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   const meals = ['breakfast', 'lunch', 'dinner']; // Backend enum keys
-  const mealLabels: Record<string, string> = { 'breakfast': 'Sáng', 'lunch': 'Trưa', 'dinner': 'Tối' };
+  const mealLabels: Record<string, string> = { 
+    'breakfast': t('meal.breakfast'), 
+    'lunch': t('meal.lunch'), 
+    'dinner': t('meal.dinner') 
+  };
 
   useEffect(() => {
     if (activeTab === 'plan' && hasGroup) {
@@ -75,24 +81,24 @@ export function MealPlanner() {
       const data = await mealService.getWeeklyPlan(startOfWeek, endOfWeek);
       setWeeklyPlan(data);
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể tải lịch ăn');
+      Alert.alert(t('common.error'), t('errors.somethingWentWrong'));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRemoveMeal = (itemId: string) => {
-    Alert.alert('Xóa món ăn', 'Bạn có chắc muốn xóa món này khỏi thực đơn?', [
-      { text: 'Hủy', style: 'cancel' },
+    Alert.alert(t('meal.deleteMeal'), t('meal.confirmDelete'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Xóa',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await mealService.removeRecipeFromMealPlan(itemId);
             setWeeklyPlan(prev => prev.filter(m => m._id !== itemId));
           } catch (error) {
-            Alert.alert('Lỗi', 'Không thể xóa món ăn');
+            Alert.alert(t('common.error'), t('errors.somethingWentWrong'));
           }
         }
       }
@@ -117,8 +123,8 @@ export function MealPlanner() {
         </View>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
           <Ionicons name="people-outline" size={64} color="#D1D5DB" />
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginTop: 12 }}>Chưa tham gia nhóm</Text>
-          <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 8 }}>Vui lòng tham gia nhóm để lên thực đơn</Text>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginTop: 12 }}>{t('fridge.noGroupTitle')}</Text>
+          <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 8 }}>{t('modal.requireGroupForMeal')}</Text>
         </View>
       </View>
     );
@@ -174,7 +180,7 @@ export function MealPlanner() {
               style={[styles.segment, activeTab === 'suggest' && styles.segmentActive]}
             >
               <Ionicons name="bulb-outline" size={16} color={activeTab === 'suggest' ? '#16A34A' : '#6B7280'} />
-              <Text style={[styles.segmentText, activeTab === 'suggest' && styles.segmentTextActive]}>Gợi ý</Text>
+              <Text style={[styles.segmentText, activeTab === 'suggest' && styles.segmentTextActive]}>{t('common.suggest')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -259,7 +265,7 @@ export function MealPlanner() {
                             </View>
                           ) : (
                             <View style={styles.emptySlot}>
-                              <Text style={styles.emptySlotText}>Chưa có món ăn</Text>
+                              <Text style={styles.emptySlotText}>{t('meal.noMealYet')}</Text>
                             </View>
                           )}
                         </View>

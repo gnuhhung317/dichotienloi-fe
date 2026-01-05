@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { foodService } from '../services/food.service';
 import { fridgeService } from '../services/fridge.service';
 
@@ -256,7 +257,7 @@ export function CreateCustomItemModal({ isOpen, onClose, onSuccess }: CreateCust
                 onChangeText={setItemName}
                 editable={!isSubmitting}
               />
-              <Text style={styles.hint}>Đặt tên dễ nhận biết để tìm kiếm sau này</Text>
+              <Text style={styles.hint}>{t('modal.easyNameHint')}</Text>
             </View>
 
             {/* Category Selection */}

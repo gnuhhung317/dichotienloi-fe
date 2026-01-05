@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { fridgeService, FridgeItem } from '../services/fridge.service';
 import { AddToFridgeModal } from './AddToFridgeModal';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
@@ -12,6 +13,7 @@ import { useGroup } from '../context/GroupContext';
 import { API_CONFIG } from '../config/app.config';
 
 export function Fridge() {
+  const { t } = useTranslation();
   const { hasGroup } = useGroup();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchText, setSearchText] = useState('');
@@ -95,7 +97,7 @@ export function Fridge() {
       const fridgeItems = await fridgeService.getFridgeItems();
       setItems(fridgeItems);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tải danh sách tủ lạnh');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
       console.error('Load fridge items error:', error);
     }
   };
@@ -105,7 +107,7 @@ export function Fridge() {
       setIsRefreshing(true);
       await loadFridgeItems();
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tải lại danh sách');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
     } finally {
       setIsRefreshing(false);
     }
@@ -121,9 +123,9 @@ export function Fridge() {
       // Reload list to get populated data
       await loadFridgeItems();
       setShowAddModal(false);
-      Alert.alert('Thành công', 'Đã thêm vào tủ lạnh');
+      Alert.alert(t('common.success'), t('fridge.itemAdded'));
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào tủ');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
       console.error('Add fridge item error:', error);
     }
   };
@@ -135,9 +137,9 @@ export function Fridge() {
         quantity: data.quantity
       });
       setShowShoppingListModal(false);
-      Alert.alert('Thành công', 'Đã thêm vào danh sách mua sắm');
+      Alert.alert(t('common.success'), t('shopping.itemAdded'));
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào danh sách');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
     }
   };
 
@@ -145,9 +147,9 @@ export function Fridge() {
     try {
       const updatedItem = await fridgeService.updateFridgeItem({ itemId, ...data });
       setItems(items.map(item => item._id === itemId ? updatedItem : item));
-      Alert.alert('Thành công', 'Đã cập nhật thông tin');
+      Alert.alert(t('common.success'), t('fridge.itemUpdated'));
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
     }
   };
 
@@ -164,7 +166,7 @@ export function Fridge() {
   const handleOpenConsumeModal = (item: FridgeItem) => {
     setSelectedConsumeItem({
       id: item._id,
-      name: typeof item.foodId === 'object' ? item.foodId.name : 'Món ăn',
+      name: typeof item.foodId === 'object' ? item.foodId.name : t('fridge.itemName'),
       maxQuantity: item.quantity,
       unit: typeof item.unitId === 'object' ? item.unitId.name : ''
     });
@@ -177,12 +179,12 @@ export function Fridge() {
 
     const quantity = parseFloat(consumeQuantity);
     if (isNaN(quantity) || quantity <= 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số lượng hợp lệ');
+      Alert.alert(t('common.error'), t('errors.invalidInput'));
       return;
     }
 
     if (quantity > selectedConsumeItem.maxQuantity) {
-      Alert.alert('Lỗi', `Số lượng không được vượt quá ${selectedConsumeItem.maxQuantity}`);
+      Alert.alert(t('common.error'), `${t('fridge.quantity')} ${selectedConsumeItem.maxQuantity}`);
       return;
     }
 
@@ -194,7 +196,7 @@ export function Fridge() {
       });
       await loadFridgeItems();
       setShowConsumeModal(false);
-      Alert.alert('Thành công', `Đã dùng ${quantity} ${selectedConsumeItem.unit} ${selectedConsumeItem.name}`);
+      Alert.alert(t('common.success'), `${quantity} ${selectedConsumeItem.unit} ${selectedConsumeItem.name}`);
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thực hiện');
     }
@@ -251,8 +253,8 @@ export function Fridge() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="people-outline" size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Chưa tham gia nhóm</Text>
-        <Text style={styles.emptyText}>Vui lòng tham gia một nhóm để quản lý tủ lạnh</Text>
+        <Text style={styles.emptyTitle}>{t('fridge.noGroupTitle')}</Text>
+        <Text style={styles.emptyText}>{t('modal.requireGroupForFridge')}</Text>
       </View>
     );
   }
@@ -266,7 +268,7 @@ export function Fridge() {
             <Ionicons name="search" size={16} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Tìm kiếm trong tủ lạnh..."
+              placeholder={t('fridge.searchPlaceholder')}
               placeholderTextColor="#9CA3AF"
               value={searchText}
               onChangeText={setSearchText}

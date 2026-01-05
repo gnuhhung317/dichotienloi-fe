@@ -170,7 +170,7 @@ export function AddToShoppingListModal({
       resetForm();
     } catch (error) {
       console.error('Submit error:', error);
-      Alert.alert('Lỗi', 'Không thể thêm vào danh sách mua sắm');
+      Alert.alert(t('modal.error'), t('modal.cannotAddToList'));
     } finally {
       setIsSubmitting(false);
     }
@@ -182,10 +182,7 @@ export function AddToShoppingListModal({
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Thêm vào danh sách mua</Text>
-            <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
+          <Text style={styles.title}>{t('modal.addToShoppingList')}</Text>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -387,7 +384,7 @@ export function AddToShoppingListModal({
                 <Text style={styles.submitBtnText}>Thêm vào danh sách</Text>
               )}
             </TouchableOpacity>
-          </View>
+          </View>{t('modal.addToShoppingList')}
         </View>
       </View>
     </Modal>

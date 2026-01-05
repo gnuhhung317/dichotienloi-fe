@@ -1,6 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../i18n';
 import { InviteMemberModal } from './InviteMemberModal';
 import { CreateGroupModal } from './CreateGroupModal';
 import { EditProfileModal } from './EditProfileModal';
@@ -13,6 +16,7 @@ interface ProfileProps {
 }
 
 export function Profile({ onLogout }: ProfileProps) {
+  const { t, i18n } = useTranslation();
   const { user, logout, isLoading: authLoading } = useAuth();
   const { group, members, hasGroup, isOwner, isLoading: groupLoading, removeMember } = useGroup();
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -20,17 +24,21 @@ export function Profile({ onLogout }: ProfileProps) {
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
+  const handleLanguageChange = async (language: 'en' | 'vi') => {
+    await changeLanguage(language);
+  };
+
   const handleLogout = async () => {
     Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
+      t('auth.logout'),
+      t('auth.logoutConfirm'),
       [
         {
-          text: 'Hủy',
+          text: t('common.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Đăng xuất',
+          text: t('auth.logout'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -47,24 +55,24 @@ export function Profile({ onLogout }: ProfileProps) {
 
   const handleRemoveMember = (userId: string, memberName: string) => {
     if (!isOwner) {
-      Alert.alert('Lỗi', 'Chỉ chủ nhóm mới có thể xóa thành viên');
+      Alert.alert(t('common.error'), t('profile.onlyOwnerCanRemove'));
       return;
     }
 
     Alert.alert(
-      'Xóa thành viên',
-      `Bạn có chắc chắn muốn xóa ${memberName} khỏi nhóm?`,
+      t('profile.removeMember'),
+      t('profile.confirmRemoveMember'),
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Xóa',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await removeMember(userId);
-              Alert.alert('Thành công', 'Đã xóa thành viên khỏi nhóm');
+              Alert.alert(t('common.success'), t('profile.removeMember'));
             } catch (error: any) {
-              Alert.alert('Lỗi', error.message);
+              Alert.alert(t('common.error'), error.message);
             }
           },
         },
@@ -104,21 +112,21 @@ export function Profile({ onLogout }: ProfileProps) {
             onPress={() => setShowEditProfileModal(true)}
           >
             <Ionicons name="create-outline" size={16} color="#16A34A" />
-            <Text style={styles.editProfileText}>Chỉnh sửa</Text>
+            <Text style={styles.editProfileText}>{t('profile.editProfile')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Family Group */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Nhóm gia đình</Text>
+            <Text style={styles.sectionTitle}>{t('profile.groupInfo')}</Text>
             {hasGroup && (
               <TouchableOpacity
                 style={styles.inviteButton}
                 onPress={() => setShowInviteModal(true)}
               >
                 <Ionicons name="person-add-outline" size={16} color="#16A34A" />
-                <Text style={styles.inviteText}>Mời</Text>
+                <Text style={styles.inviteText}>{t('profile.inviteMember')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -127,16 +135,16 @@ export function Profile({ onLogout }: ProfileProps) {
             <View style={styles.card}>
               <View style={styles.noGroupContainer}>
                 <Ionicons name="people-outline" size={48} color="#9CA3AF" />
-                <Text style={styles.noGroupTitle}>Chưa có nhóm</Text>
+                <Text style={styles.noGroupTitle}>{t('profile.noGroup')}</Text>
                 <Text style={styles.noGroupText}>
-                  Tạo nhóm để chia sẻ tủ lạnh và danh sách mua sắm với gia đình
+                  {t('profile.noGroup')}
                 </Text>
                 <TouchableOpacity
                   style={styles.createGroupButton}
                   onPress={() => setShowCreateGroupModal(true)}
                 >
                   <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.createGroupText}>Tạo nhóm mới</Text>
+                  <Text style={styles.createGroupText}>{t('profile.createGroup')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -149,8 +157,8 @@ export function Profile({ onLogout }: ProfileProps) {
                     <Ionicons name="people" size={20} color="#16A34A" />
                   </View>
                   <View style={styles.groupDetails}>
-                    <Text style={styles.groupName}>{group?.name || 'Nhóm của bạn'}</Text>
-                    <Text style={styles.groupMembers}>{members.length} thành viên</Text>
+                    <Text style={styles.groupName}>{group?.name || t('profile.groupName')}</Text>
+                    <Text style={styles.groupMembers}>{members.length} {t('profile.groupMembers')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </View>
@@ -173,7 +181,7 @@ export function Profile({ onLogout }: ProfileProps) {
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{member.user?.name || 'User'}</Text>
                     <Text style={styles.memberRole}>
-                      {member.role === 'owner' ? 'Chủ nhóm' : 'Thành viên'}
+                      {member.role === 'owner' ? t('profile.owner') : t('profile.member')}
                     </Text>
                   </View>
                   {member.role === 'owner' && (
@@ -195,17 +203,72 @@ export function Profile({ onLogout }: ProfileProps) {
           )}
         </View>
 
+        {/* Reports */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('profile.reports')}</Text>
+          <View style={styles.card}>
+            <Link href="/report" asChild>
+              <TouchableOpacity style={styles.settingRow}>
+                <View style={[styles.settingIcon, styles.orangeIcon]}>
+                  <Ionicons name="bar-chart" size={20} color="#EA580C" />
+                </View>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>{t('profile.shoppingConsumptionReport')}</Text>
+                  <Text style={styles.settingSubtitle}>{t('profile.viewStatistics')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </View>
+
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cài đặt</Text>
+          <Text style={styles.sectionTitle}>{t('profile.settings')}</Text>
           <View style={styles.card}>
+            {/* Language Switcher */}
+            <View style={[styles.settingRow, styles.settingBorder]}>
+              <View style={[styles.settingIcon, styles.greenIcon]}>
+                <Ionicons name="language" size={20} color="#16A34A" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingTitle}>{t('profile.language')}</Text>
+                <View style={styles.languageButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.languageButton,
+                      i18n.language === 'en' && styles.languageButtonActive
+                    ]}
+                    onPress={() => handleLanguageChange('en')}
+                  >
+                    <Text style={[
+                      styles.languageButtonText,
+                      i18n.language === 'en' && styles.languageButtonTextActive
+                    ]}>English</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.languageButton,
+                      i18n.language === 'vi' && styles.languageButtonActive
+                    ]}
+                    onPress={() => handleLanguageChange('vi')}
+                  >
+                    <Text style={[
+                      styles.languageButtonText,
+                      i18n.language === 'vi' && styles.languageButtonTextActive
+                    ]}>Tiếng Việt</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
             <TouchableOpacity style={[styles.settingRow, styles.settingBorder]}>
               <View style={[styles.settingIcon, styles.blueIcon]}>
                 <Ionicons name="notifications" size={20} color="#2563EB" />
               </View>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Thông báo</Text>
-                <Text style={styles.settingSubtitle}>Quản lý cảnh báo và thông báo</Text>
+                <Text style={styles.settingTitle}>{t('profile.notifications')}</Text>
+                <Text style={styles.settingSubtitle}>{t('notifications.title')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -215,8 +278,8 @@ export function Profile({ onLogout }: ProfileProps) {
                 <Ionicons name="shield-checkmark" size={20} color="#7C3AED" />
               </View>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Quyền riêng tư</Text>
-                <Text style={styles.settingSubtitle}>Bảo mật và quyền truy cập</Text>
+                <Text style={styles.settingTitle}>{t('profile.privacy')}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.privacy')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -229,8 +292,8 @@ export function Profile({ onLogout }: ProfileProps) {
                 <Ionicons name="key" size={20} color="#16A34A" />
               </View>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Đổi mật khẩu</Text>
-                <Text style={styles.settingSubtitle}>Cập nhật mật khẩu bảo mật</Text>
+                <Text style={styles.settingTitle}>{t('profile.changePassword')}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.changePassword')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -240,8 +303,8 @@ export function Profile({ onLogout }: ProfileProps) {
                 <Ionicons name="help-circle" size={20} color="#EA580C" />
               </View>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Trợ giúp & Hỗ trợ</Text>
-                <Text style={styles.settingSubtitle}>FAQ và liên hệ</Text>
+                <Text style={styles.settingTitle}>{t('profile.about')}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.about')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -250,12 +313,12 @@ export function Profile({ onLogout }: ProfileProps) {
 
         {/* Notification Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tùy chọn thông báo</Text>
+          <Text style={styles.sectionTitle}>{t('notifications.title')}</Text>
           <View style={styles.card}>
             <View style={styles.notificationRow}>
               <View style={styles.notificationInfo}>
-                <Text style={styles.notificationTitle}>Cảnh báo hết hạn</Text>
-                <Text style={styles.notificationSubtitle}>Nhận thông báo khi thực phẩm sắp hết hạn</Text>
+                <Text style={styles.notificationTitle}>{t('notifications.expiryAlert')}</Text>
+                <Text style={styles.notificationSubtitle}>{t('notifications.expiryAlert')}</Text>
               </View>
               <View style={styles.switch}>
                 <View style={styles.switchOn}>
@@ -266,8 +329,8 @@ export function Profile({ onLogout }: ProfileProps) {
 
             <View style={styles.notificationRow}>
               <View style={styles.notificationInfo}>
-                <Text style={styles.notificationTitle}>Cập nhật mua sắm</Text>
-                <Text style={styles.notificationSubtitle}>Thông báo khi có món mới hoặc đã mua</Text>
+                <Text style={styles.notificationTitle}>{t('notifications.shoppingReminder')}</Text>
+                <Text style={styles.notificationSubtitle}>{t('notifications.shoppingReminder')}</Text>
               </View>
               <View style={styles.switch}>
                 <View style={styles.switchOn}>
@@ -278,8 +341,8 @@ export function Profile({ onLogout }: ProfileProps) {
 
             <View style={styles.notificationRow}>
               <View style={styles.notificationInfo}>
-                <Text style={styles.notificationTitle}>Gợi ý công thức</Text>
-                <Text style={styles.notificationSubtitle}>Nhận gợi ý món ăn hàng tuần</Text>
+                <Text style={styles.notificationTitle}>{t('suggestion.recipeIdeas')}</Text>
+                <Text style={styles.notificationSubtitle}>{t('suggestion.recipeIdeas')}</Text>
               </View>
               <View style={styles.switch}>
                 <View style={styles.switchOff}>
@@ -292,7 +355,7 @@ export function Profile({ onLogout }: ProfileProps) {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Đi Chợ Tiện Lợi v1.0.0</Text>
+          <Text style={styles.appInfoText}>Đi Chợ Tiện Lợi v{t('profile.version')} 1.0.0</Text>
           <Text style={styles.appInfoText}>© 2026 Smart Grocery Manager</Text>
         </View>
 
@@ -302,7 +365,7 @@ export function Profile({ onLogout }: ProfileProps) {
           onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#DC2626" />
-          <Text style={styles.logoutText}>Đăng xuất</Text>
+          <Text style={styles.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -562,6 +625,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+  },
+  languageButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  languageButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+  },
+  languageButtonActive: {
+    borderColor: '#16A34A',
+    backgroundColor: '#DCFCE7',
+  },
+  languageButtonText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  languageButtonTextActive: {
+    color: '#16A34A',
+    fontWeight: '600',
   },
   notificationRow: {
     flexDirection: 'row',

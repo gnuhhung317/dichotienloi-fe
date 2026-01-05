@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { AddToFridgeModal } from './AddToFridgeModal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { CreateCustomItemModal } from './CreateCustomItemModal';
@@ -17,6 +18,7 @@ import { useGroup } from '../context/GroupContext';
 type ActiveModal = 'addFridge' | 'scanner' | 'customItem' | 'invite' | null;
 
 export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { hasGroup } = useGroup();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
@@ -101,9 +103,9 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
       });
       await loadData(); // Reload home data
       setActiveModal(null);
-      Alert.alert('Thành công', 'Đã thêm vào tủ lạnh');
+      Alert.alert(t('common.success'), t('fridge.itemAdded'));
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào tủ');
+      Alert.alert(t('common.error'), error.response?.data?.message || t('errors.somethingWentWrong'));
       console.error('Add fridge item error:', error);
     }
   };
@@ -121,18 +123,18 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
       <View style={styles.content}>
         {/* Greeting */}
         <View style={styles.greeting}>
-          <Text style={styles.greetingTitle}>Xin chào, {user?.name || 'Bạn'}!</Text>
-          <Text style={styles.greetingSubtitle}>{hasGroup ? 'Hôm nay bạn cần mua gì?' : 'Bạn chưa tham gia nhóm nào.'}</Text>
+          <Text style={styles.greetingTitle}>{t('home.welcome')}, {user?.name || t('common.loading')}!</Text>
+          <Text style={styles.greetingSubtitle}>{hasGroup ? t('home.expiringItems') : t('profile.noGroup')}</Text>
         </View>
 
         {!hasGroup ? (
           <View style={styles.emptyGroupState}>
             <Ionicons name="people-outline" size={64} color="#9CA3AF" />
             <Text style={styles.emptyGroupText}>
-              Vui lòng tạo hoặc tham gia một nhóm để sử dụng các tính năng mua sắm và quản lý tủ lạnh.
+              {t('profile.noGroup')}
             </Text>
             <TouchableOpacity style={styles.createGroupButton} onPress={() => setActiveModal('invite')}>
-              <Text style={styles.createGroupButtonText}>Tham gia ngay</Text>
+              <Text style={styles.createGroupButtonText}>{t('profile.createGroup')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -148,9 +150,9 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
                       <Text style={styles.cardEmoji}>🛒</Text>
                     </View>
                     <View style={styles.cardInfo}>
-                      <Text style={styles.cardTitle}>Danh sách mua sắm</Text>
+                      <Text style={styles.cardTitle}>{t('shopping.title')}</Text>
                       <Text style={styles.cardSubtitle}>
-                        {shoppingCount > 0 ? `${shoppingCount} món cần mua` : 'Đã mua đủ'}
+                        {shoppingCount > 0 ? `${shoppingCount} ${t('shopping.pending')}` : t('shopping.purchased')}
                       </Text>
                     </View>
                   </View>
@@ -172,11 +174,11 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
                       <Ionicons name="alert-circle" size={20} color="#EA580C" />
                     </View>
                     <View style={styles.cardInfo}>
-                      <Text style={styles.cardTitle}>Cảnh báo tủ lạnh</Text>
+                      <Text style={styles.cardTitle}>{t('notifications.expiryAlert')}</Text>
                       <Text style={styles.alertText}>
                         {expiringItems.length > 0
-                          ? `${expiringItems.length} món sắp hết hạn`
-                          : 'Tủ lạnh an toàn'}
+                          ? `${expiringItems.length} ${t('fridge.nearExpiry')}`
+                          : t('fridge.fresh')}
                       </Text>
                     </View>
                   </View>
@@ -210,9 +212,9 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
                       <Text style={styles.cardEmoji}>🍽️</Text>
                     </View>
                     <View style={styles.cardInfo}>
-                      <Text style={styles.cardTitle}>Thực đơn hôm nay</Text>
+                      <Text style={styles.cardTitle}>{t('meal.title')}</Text>
                       <Text style={styles.cardSubtitle}>
-                        {todayMeal ? 'Đã lên kế hoạch' : 'Chưa có kế hoạch'}
+                        {todayMeal ? t('meal.addMeal') : t('meal.emptyPlanner')}
                       </Text>
                     </View>
                   </View>
@@ -229,16 +231,16 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
                       <Text style={styles.mealName}>{todayMeal.recipeId.name}</Text>
                       <View style={styles.mealMeta}>
                         <Text style={styles.mealMetaText}>
-                          {todayMeal.mealType === 'dinner' ? 'Bữa tối' : todayMeal.mealType === 'lunch' ? 'Bữa trưa' : 'Bữa sáng'}
+                          {todayMeal.mealType === 'dinner' ? t('meal.dinner') : todayMeal.mealType === 'lunch' ? t('meal.lunch') : t('meal.breakfast')}
                         </Text>
                         <Text style={styles.mealMetaText}>•</Text>
-                        <Text style={styles.mealMetaText}>{todayMeal.recipeId.description || 'Món ngon mỗi ngày'}</Text>
+                        <Text style={styles.mealMetaText}>{todayMeal.recipeId.description || t('cookbook.description')}</Text>
                       </View>
                     </View>
                   </View>
                 ) : (
                   <View style={styles.emptyMealState}>
-                    <Text style={styles.emptyMealText}>Chưa có món nào cho hôm nay</Text>
+                    <Text style={styles.emptyMealText}>{t('meal.emptyPlanner')}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -246,31 +248,31 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
 
             {/* Quick Actions */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
+              <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
               <View style={styles.actionsGrid}>
                 <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('addFridge')}>
                   <View style={[styles.actionIcon, styles.actionIconGreen]}>
                     <Text style={styles.actionEmoji}>➕</Text>
                   </View>
-                  <Text style={styles.actionText}>Thêm vào tủ lạnh</Text>
+                  <Text style={styles.actionText}>{t('fridge.addItem')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('scanner')}>
                   <View style={[styles.actionIcon, styles.actionIconBlue]}>
                     <Text style={styles.actionEmoji}>📱</Text>
                   </View>
-                  <Text style={styles.actionText}>Quét mã vạch</Text>
+                  <Text style={styles.actionText}>{t('fridge.scanBarcode')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('customItem')}>
                   <View style={[styles.actionIcon, styles.actionIconPurple]}>
                     <Text style={styles.actionEmoji}>📝</Text>
                   </View>
-                  <Text style={styles.actionText}>Thêm món mới</Text>
+                  <Text style={styles.actionText}>{t('common.add')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton} onPress={() => setActiveModal('invite')}>
                   <View style={[styles.actionIcon, styles.actionIconOrange]}>
                     <Text style={styles.actionEmoji}>👥</Text>
                   </View>
-                  <Text style={styles.actionText}>Mời thành viên</Text>
+                  <Text style={styles.actionText}>{t('profile.inviteMember')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

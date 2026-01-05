@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginProps {
@@ -7,6 +8,7 @@ interface LoginProps {
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const { t } = useTranslation();
   const { login, register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
@@ -18,17 +20,17 @@ export function Login({ onLogin }: LoginProps) {
   const handleSubmit = async () => {
     // Validation
     if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email và mật khẩu');
+      Alert.alert(t('common.error'), t('auth.emailRequired'));
       return;
     }
 
     if (isRegister && !fullName) {
-      Alert.alert('Lỗi', 'Vui lòng nhập họ và tên');
+      Alert.alert(t('common.error'), t('auth.emailRequired'));
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự');
+      Alert.alert(t('common.error'), t('auth.passwordRequired'));
       return;
     }
 
@@ -37,16 +39,16 @@ export function Login({ onLogin }: LoginProps) {
     try {
       if (isRegister) {
         await register(email, password, fullName);
-        Alert.alert('Thành công', 'Đăng ký thành công!');
+        Alert.alert(t('common.success'), t('auth.registerSuccess'));
       } else {
         await login(email, password);
-        Alert.alert('Thành công', 'Đăng nhập thành công!');
+        Alert.alert(t('common.success'), t('auth.loginSuccess'));
       }
       
       // Gọi callback nếu có
       onLogin?.();
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra');
+      Alert.alert(t('common.error'), error.message || t('errors.somethingWentWrong'));
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +64,7 @@ export function Login({ onLogin }: LoginProps) {
           </View>
           <Text style={styles.title}>Đi Chợ Tiện Lợi</Text>
           <Text style={styles.subtitle}>
-            {isRegister ? 'Tạo tài khoản mới' : 'Chào mừng trở lại!'}
+            {isRegister ? t('auth.register') : t('home.welcome')}
           </Text>
         </View>
 
@@ -70,10 +72,10 @@ export function Login({ onLogin }: LoginProps) {
         <View style={styles.form}>
           {isRegister && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Họ và tên</Text>
+              <Text style={styles.label}>{t('auth.username')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Nguyễn Văn A"
+                placeholder={t('auth.username')}
                 value={fullName}
                 onChangeText={setFullName}
                 placeholderTextColor="#9CA3AF"
@@ -82,7 +84,7 @@ export function Login({ onLogin }: LoginProps) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <TextInput
               style={styles.input}
               placeholder="email@example.com"
@@ -95,7 +97,7 @@ export function Login({ onLogin }: LoginProps) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mật khẩu</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
@@ -116,7 +118,7 @@ export function Login({ onLogin }: LoginProps) {
 
           {!isRegister && (
             <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
+              <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
           )}
 
@@ -129,7 +131,7 @@ export function Login({ onLogin }: LoginProps) {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.loginButtonText}>
-                {isRegister ? 'Đăng ký' : 'Đăng nhập'}
+                {isRegister ? t('auth.register') : t('auth.login')}
               </Text>
             )}
           </TouchableOpacity>
@@ -155,11 +157,11 @@ export function Login({ onLogin }: LoginProps) {
         {/* Toggle Auth Mode */}
         <View style={styles.toggleContainer}>
           <Text style={styles.toggleText}>
-            {isRegister ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}{' '}
+            {isRegister ? t('auth.register') : t('auth.login')}{' '}
           </Text>
           <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
             <Text style={styles.toggleLink}>
-              {isRegister ? 'Đăng nhập' : 'Đăng ký ngay'}
+              {isRegister ? t('auth.login') : t('auth.register')}
             </Text>
           </TouchableOpacity>
         </View>

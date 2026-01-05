@@ -1,12 +1,21 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Lấy IP từ Expo hoặc dùng giá trị mặc định
+// Lấy API URL từ environment variables hoặc logic development
 const getApiUrl = () => {
+  // Ưu tiên environment variable (dùng cho production builds)
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envApiUrl) {
+    console.log('Using ENV API URL:', envApiUrl);
+    return envApiUrl;
+  }
+
+  // Development mode - tự động detect
   // Nếu chạy trên web, dùng localhost
   if (Platform.OS === 'web') {
-    return 'http://54.251.156.243/api';
+    return 'http://localhost:4000/api';
   }
+  
   // Lấy IP từ Expo debugger (khi dùng Expo Go)
   const expoDebuggerHost = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -19,14 +28,13 @@ const getApiUrl = () => {
   // 10.0.2.2 is the special alias to your host loopback interface (127.0.0.1)
   console.log('Using Android Emulator Fallback: 10.0.2.2');
   return 'http://10.0.2.2:4000/api';
-
-  // Old remote server - commented out to force local dev
-  // return 'http://54.251.156.243/api';
 };
 
 // API Configuration
 const apiUrl = getApiUrl();
+const env = process.env.EXPO_PUBLIC_ENV || 'development';
 console.log('API_URL_CONFIGURED:', apiUrl);
+console.log('ENVIRONMENT:', env);
 
 export const API_CONFIG = {
   BASE_URL: apiUrl,

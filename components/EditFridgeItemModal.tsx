@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { FridgeItem, fridgeService } from '../services/fridge.service';
 import { foodService } from '../services/food.service';
 import { API_CONFIG } from '../config/app.config';
@@ -19,6 +20,7 @@ export function EditFridgeItemModal({
     onSubmit,
     item,
 }: EditFridgeItemModalProps) {
+    const { t } = useTranslation();
     const [quantity, setQuantity] = useState('1');
     const [expiryDate, setExpiryDate] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function EditFridgeItemModal({
 
         const val = parseFloat(quantity.replace(',', '.'));
         if (!val || val <= 0) {
-            Alert.alert('Lỗi', 'Số lượng không hợp lệ');
+            Alert.alert(t('modal.error'), t('fridge.invalidQuantity'));
             return;
         }
 
@@ -84,7 +86,7 @@ export function EditFridgeItemModal({
             // Simple validation YYYY-MM-DD
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(expiryDate)) {
-                Alert.alert('Lỗi', 'Định dạng ngày không hợp lệ (YYYY-MM-DD)');
+                Alert.alert(t('modal.error'), t('fridge.invalidDateFormat'));
                 return;
             }
             finalDate = new Date(expiryDate).toISOString();
@@ -105,7 +107,7 @@ export function EditFridgeItemModal({
             });
             onClose();
         } catch (error) {
-            Alert.alert('Lỗi', 'Có lỗi xảy ra khi cập nhật');
+            Alert.alert(t('modal.error'), t('errors.somethingWentWrong'));
         } finally {
             setIsSubmitting(false);
         }
@@ -124,7 +126,7 @@ export function EditFridgeItemModal({
                 <View style={styles.modal}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Chi tiết tủ lạnh</Text>
+                        <Text style={styles.title}>{t('fridge.editItem')}</Text>
                         <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
                             <Ionicons name="close" size={24} color="#6B7280" />
                         </TouchableOpacity>
@@ -144,14 +146,14 @@ export function EditFridgeItemModal({
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.itemName}>{foodName}</Text>
                                 <Text style={styles.itemUnit}>
-                                    Còn lại: {daysLeft} ngày
+                                    {t('fridge.daysLeft')}: {daysLeft} {t('common.days')}
                                 </Text>
                             </View>
                         </View>
 
                         {/* Quantity */}
                         <View style={styles.section}>
-                            <Text style={styles.label}>Số lượng ({unitName})</Text>
+                            <Text style={styles.label}>{t('fridge.quantity')} ({unitName})</Text>
                             <View style={styles.quantityControl}>
                                 <TouchableOpacity
                                     style={styles.quantityBtn}
@@ -179,7 +181,7 @@ export function EditFridgeItemModal({
 
                         {/* Expiry Date */}
                         <View style={styles.section}>
-                            <Text style={styles.label}>Hạn sử dụng</Text>
+                            <Text style={styles.label}>{t('fridge.expiryDate')}</Text>
                             <View style={styles.dateControl}>
                                 <TextInput
                                     style={styles.dateInput}
@@ -191,10 +193,10 @@ export function EditFridgeItemModal({
                             </View>
                             <View style={styles.quickDateRow}>
                                 <TouchableOpacity style={styles.quickDateBtn} onPress={() => handleExtendExpiry(3)}>
-                                    <Text style={styles.quickDateText}>+3 ngày</Text>
+                                    <Text style={styles.quickDateText}>+3 {t('common.days')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.quickDateBtn} onPress={() => handleExtendExpiry(7)}>
-                                    <Text style={styles.quickDateText}>+1 tuần</Text>
+                                    <Text style={styles.quickDateText}>+1 {t('common.week')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -207,7 +209,7 @@ export function EditFridgeItemModal({
                             onPress={onClose}
                             disabled={isSubmitting}
                         >
-                            <Text style={styles.cancelBtnText}>Hủy</Text>
+                            <Text style={styles.cancelBtnText}>{t('modal.cancel')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.btn, styles.submitBtn]}
@@ -217,7 +219,7 @@ export function EditFridgeItemModal({
                             {isSubmitting ? (
                                 <ActivityIndicator size="small" color="#FFFFFF" />
                             ) : (
-                                <Text style={styles.submitBtnText}>Lưu thay đổi</Text>
+                                <Text style={styles.submitBtnText}>{t('fridge.saveChanges')}</Text>
                             )}
                         </TouchableOpacity>
                     </View>

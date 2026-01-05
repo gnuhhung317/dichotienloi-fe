@@ -1,5 +1,6 @@
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Recipe, recipeService } from '../services/recipe.service';
 import { API_CONFIG } from '../config/app.config';
 
@@ -18,13 +19,30 @@ export function RecipeDetailModal({
     onEdit,
     onDeleteSuccess,
 }: RecipeDetailModalProps) {
+    const { t } = useTranslation();
     if (!recipe) return null;
 
+    const handleClone = async () => {
+        try {
+            await recipeService.cloneRecipe(recipe._id);
+            Alert.alert(t('common.success'), t('cookbook.recipeAdded'), [
+                {
+                    text: t('common.ok'), onPress: () => {
+                        onDeleteSuccess(); // Refresh list
+                        onClose();
+                    }
+                }
+            ]);
+        } catch (error) {
+            Alert.alert(t('common.error'), t('errors.somethingWentWrong'));
+        }
+    };
+
     const handleDelete = () => {
-        Alert.alert('Xóa công thức', 'Bạn có chắc chắn muốn xóa công thức này?', [
-            { text: 'Hủy', style: 'cancel' },
+        Alert.alert(t('cookbook.deleteRecipe'), t('cookbook.confirmDelete'), [
+            { text: t('common.cancel'), style: 'cancel' },
             {
-                text: 'Xóa',
+                text: t('common.delete'),
                 style: 'destructive',
                 onPress: async () => {
                     try {
@@ -32,12 +50,14 @@ export function RecipeDetailModal({
                         onDeleteSuccess();
                         onClose();
                     } catch (error) {
-                        Alert.alert('Lỗi', 'Không thể xóa công thức');
+                        Alert.alert(t('common.error'), t('errors.somethingWentWrong'));
                     }
                 },
             },
         ]);
     };
+
+    const isGlobal = recipe.ownerType === 'global';
 
     return (
         <Modal visible={isOpen} animationType="slide" onRequestClose={onClose}>
@@ -63,16 +83,20 @@ export function RecipeDetailModal({
                 <ScrollView style={styles.content}>
                     <View style={styles.header}>
                         <Text style={styles.title}>{recipe.name}</Text>
-
+                        {isGlobal && (
+                            <View style={styles.badgeContainer}>
+                                <Text style={styles.badgeText}>{t('cookbook.discover')}</Text>
+                            </View>
+                        )}
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Mô tả</Text>
-                        <Text style={styles.description}>{recipe.description || 'Chưa có mô tả'}</Text>
+                        <Text style={styles.sectionTitle}>{t('cookbook.description')}</Text>
+                        <Text style={styles.description}>{recipe.description || t('cookbook.description')}</Text>
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Nguyên liệu ({recipe.ingredients.length})</Text>
+                        <Text style={styles.sectionTitle}>{t('cookbook.ingredients')} ({recipe.ingredients.length})</Text>
                         {recipe.ingredients.map((ing, index) => (
                             <View key={index} style={styles.ingredientRow}>
                                 <View style={styles.bullet} />
@@ -87,14 +111,23 @@ export function RecipeDetailModal({
                 </ScrollView>
 
                 <View style={styles.footer}>
-                    <TouchableOpacity style={[styles.btn, styles.editBtn]} onPress={() => onEdit(recipe)}>
-                        <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-                        <Text style={styles.btnText}>Chỉnh sửa</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.btn, styles.deleteBtn]} onPress={handleDelete}>
-                        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-                        <Text style={styles.btnText}>Xóa</Text>
-                    </TouchableOpacity>
+                    {isGlobal ? (
+                        <TouchableOpacity style={[styles.btn, styles.saveBtn]} onPress={handleClone}>
+                            <Ionicons name="download-outline" size={20} color="#FFFFFF" />
+                            <Text style={styles.btnText}>{t('common.save')}</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <>
+                            <TouchableOpacity style={[styles.btn, styles.editBtn]} onPress={() => onEdit(recipe)}>
+                                <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+                                <Text style={styles.btnText}>{t('common.edit')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.btn, styles.deleteBtn]} onPress={handleDelete}>
+                                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+                                <Text style={styles.btnText}>{t('common.delete')}</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </View>
         </Modal>
@@ -133,13 +166,29 @@ const styles = StyleSheet.create({
     header: {
         padding: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6'
+        borderBottomColor: '#F3F4F6',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         color: '#111827',
-        marginBottom: 8
+        marginBottom: 8,
+        flex: 1
+    },
+    badgeContainer: {
+        backgroundColor: '#DBEAFE',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+        marginLeft: 8
+    },
+    badgeText: {
+        color: '#1E40AF',
+        fontSize: 12,
+        fontWeight: '500'
     },
     metaRow: {
         flexDirection: 'row',
@@ -213,6 +262,9 @@ const styles = StyleSheet.create({
     },
     deleteBtn: {
         backgroundColor: '#EF4444'
+    },
+    saveBtn: {
+        backgroundColor: '#16A34A'
     },
     btnText: {
         color: '#FFFFFF',

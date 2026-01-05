@@ -160,6 +160,11 @@ class RecipeService {
         // But spread in normalizeRecipe preserves extra fields
         return Array.isArray(response.data) ? response.data.map(r => this.normalizeRecipe(r) as any) : [];
     }
+
+    async cloneRecipe(recipeId: string): Promise<Recipe> {
+        const response = await api.post(`/recipe/${recipeId}/clone`);
+        return this.normalizeRecipe(response.data);
+    }
 }
 
 export const recipeService = new RecipeService();
