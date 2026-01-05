@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { shoppingService, ShoppingItem, ShoppingList as ShoppingListType } from '../services/shopping.service';
-import { groupService, GroupMember } from '../services/group.service';
+import groupService, { GroupMember } from '../services/group.service';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
 import { EditShoppingItemModal } from './EditShoppingItemModal';
 import { API_CONFIG } from '../config/app.config';
