@@ -77,7 +77,9 @@ class FoodService {
         } as any);
 
         const response = await api.post('/food', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          transformRequest: (data, headers) => {
+            return formData; // Avoid axios messing with it
+          },
         });
         return response.data.data || response.data;
       } else {
@@ -116,7 +118,9 @@ class FoodService {
         } as any);
 
         const response = await api.put('/food', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          transformRequest: (data, headers) => {
+            return formData; // Avoid axios messing with it
+          },
         });
         return response.data.data || response.data;
       } else {
