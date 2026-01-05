@@ -1,2 +1,3 @@
-/* This file is required for NativeWind/Tailwind CSS */
-@import './src/styles/globals.css';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";

@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState('home');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   const { group } = useGroup();
-  const { user } = useAuth(); // Get user to check role
+  const { user, logout } = useAuth(); // Get user to check role
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -27,7 +27,10 @@ export default function HomeScreen() {
 
   // If user is admin, show AdminDashboard
   if (user?.role === 'admin') {
-    return <AdminDashboard onLogout={() => setIsAuthenticated(false)} />;
+    return <AdminDashboard onLogout={() => {
+      logout();
+      setIsAuthenticated(false);
+    }} />;
   }
 
   const renderScreen = () => {
@@ -41,7 +44,10 @@ export default function HomeScreen() {
       case 'meals':
         return <MealPlanner />;
       case 'profile':
-        return <Profile onLogout={() => setIsAuthenticated(false)} />;
+        return <Profile onLogout={() => {
+          logout();
+          setIsAuthenticated(false);
+        }} />;
       default:
         return <Home onNavigate={setActiveTab} />;
     }

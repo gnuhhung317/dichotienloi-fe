@@ -25,9 +25,16 @@ export interface Unit {
 
 export interface FoodLog {
   _id: string;
+  foodId: {
+    _id: string;
+    name: string;
+    image?: string;
+  };
   foodName: string;
   action: string;
   timestamp: string;
+  created_at?: string;
+  quantity: number;
 }
 
 class FoodService {

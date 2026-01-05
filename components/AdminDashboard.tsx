@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, SafeAreaView, TouchableOpacity, Text, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserManagement } from './admin/UserManagement';
 import { CategoryManagement } from './admin/CategoryManagement';
@@ -38,10 +38,16 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     ];
 
     const handleLogout = () => {
-        Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
-            { text: 'Hủy', style: 'cancel' },
-            { text: 'Đăng xuất', style: 'destructive', onPress: onLogout }
-        ])
+        if (Platform.OS === 'web') {
+            if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+                onLogout();
+            }
+        } else {
+            Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
+                { text: 'Hủy', style: 'cancel' },
+                { text: 'Đăng xuất', style: 'destructive', onPress: onLogout }
+            ]);
+        }
     }
 
     return (

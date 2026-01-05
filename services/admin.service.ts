@@ -52,7 +52,7 @@ class AdminService {
     }
 
     async deleteCategory(name: string): Promise<void> {
-        await api.delete('/admin/category', { data: { name } });
+        await api.delete(`/admin/category/${name}`);
     }
 
     // --- Unit Management ---
@@ -72,7 +72,7 @@ class AdminService {
     }
 
     async deleteUnit(unitName: string): Promise<void> {
-        await api.delete('/admin/unit', { data: { unitName } });
+        await api.delete(`/admin/unit/${unitName}`);
     }
 }
 

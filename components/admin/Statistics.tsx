@@ -73,8 +73,8 @@ export function Statistics() {
                 />
             </View>
             <View style={styles.logContent}>
-                <Text style={styles.logAction}>{item.action} - {item.foodName}</Text>
-                <Text style={styles.logTime}>{new Date(item.timestamp).toLocaleString('vi-VN')}</Text>
+                <Text style={styles.logAction}>{item.action} - {item.foodId?.name || item.foodName}</Text>
+                <Text style={styles.logTime}>{new Date(item.created_at || item.timestamp).toLocaleString('vi-VN')}</Text>
             </View>
         </View>
     );
