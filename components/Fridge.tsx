@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { fridgeService, FridgeItem } from '../services/fridge.service';
 import { AddToFridgeModal } from './AddToFridgeModal';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
+import { EditFridgeItemModal } from './EditFridgeItemModal';
 import { foodService } from '../services/food.service';
 import { shoppingService } from '../services/shopping.service';
 import { useGroup } from '../context/GroupContext';
+import { API_CONFIG } from '../config/app.config';
 
 export function Fridge() {
   const { hasGroup } = useGroup();
@@ -16,6 +18,8 @@ export function Fridge() {
   const [items, setItems] = useState<FridgeItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<FridgeItem | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Categories state
@@ -123,6 +127,21 @@ export function Fridge() {
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm vào danh sách');
     }
+  };
+
+  const handleUpdateItem = async (itemId: string, data: { quantity?: number; expiredAt?: string }) => {
+    try {
+      const updatedItem = await fridgeService.updateFridgeItem({ itemId, ...data });
+      setItems(items.map(item => item._id === itemId ? updatedItem : item));
+      Alert.alert('Thành công', 'Đã cập nhật thông tin');
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật');
+    }
+  };
+
+  const openEditModal = (item: FridgeItem) => {
+    setEditingItem(item);
+    setShowEditModal(true);
   };
 
   // Consume Modal State
@@ -306,12 +325,12 @@ export function Fridge() {
                 >
                   <TouchableOpacity
                     style={styles.gridItemImageContainer}
-                    onPress={() => { /* View details? */ }}
+                    onPress={() => openEditModal(item)}
                     activeOpacity={0.9}
                   >
                     {typeof item.foodId === 'object' && item.foodId.image ? (
                       <Image
-                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
                         style={styles.gridItemImage}
                       />
                     ) : (
@@ -363,12 +382,12 @@ export function Fridge() {
                 >
                   <TouchableOpacity
                     style={styles.listItemImageContainer}
-                    onPress={() => { /* View details? */ }}
+                    onPress={() => openEditModal(item)}
                     activeOpacity={0.9}
                   >
                     {typeof item.foodId === 'object' && item.foodId.image ? (
                       <Image
-                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
                         style={styles.gridItemImage}
                       />
                     ) : (
@@ -444,6 +463,13 @@ export function Fridge() {
         isOpen={showShoppingListModal}
         onClose={() => setShowShoppingListModal(false)}
         onSubmit={handleAddToShoppingList}
+      />
+
+      <EditFridgeItemModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleUpdateItem}
+        item={editingItem}
       />
 
       {/* Consume Modal */}

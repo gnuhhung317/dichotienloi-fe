@@ -11,14 +11,23 @@ import { BottomNav } from '@/components/BottomNav';
 import { Header } from '@/components/Header';
 import { useGroup } from '@/context/GroupContext';
 
+import { AdminDashboard } from '@/components/AdminDashboard';
+import { useAuth } from '@/context/AuthContext';
+
 export default function HomeScreen() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   const { group } = useGroup();
+  const { user } = useAuth(); // Get user to check role
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
+  // If user is admin, show AdminDashboard
+  if (user?.role === 'admin') {
+    return <AdminDashboard onLogout={() => setIsAuthenticated(false)} />;
   }
 
   const renderScreen = () => {

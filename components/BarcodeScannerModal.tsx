@@ -1,35 +1,143 @@
-import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Animated } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, Animated, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { foodService, Food } from '../services/food.service';
+import { fridgeService } from '../services/fridge.service';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 type ScanState = 'scanning' | 'found' | 'notfound';
 
-export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProps) {
+export function BarcodeScannerModal({ isOpen, onClose, onSuccess }: BarcodeScannerModalProps) {
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [flashOn, setFlashOn] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualCode, setManualCode] = useState('');
 
-  const foundProduct = {
-    name: 'Nước tương Chin-su',
-    defaultExpiry: 365,
-  };
+  const [isSearching, setIsSearching] = useState(false);
+  const [foundProducts, setFoundProducts] = useState<Food[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Food | null>(null);
+  const [expiryDate, setExpiryDate] = useState(''); // Simple text for now, should be date picker
+
+  // For "Not Found" manual entry
+  const [manualName, setManualName] = useState('');
+
+  const MAX_SEARCH_RESULTS = 5;
 
   const handleScan = () => {
+    // Simulation of barcode scanning finding nothing (since we don't have a real DB of barcodes yet)
+    // In real app, this would use the camera data to call an API.
     setTimeout(() => {
-      setScanState(Math.random() > 0.5 ? 'found' : 'notfound');
-    }, 1000);
+      setScanState('notfound');
+    }, 1500);
+  };
+
+  const handleManualSearch = async () => {
+    if (!manualCode.trim()) return;
+
+    try {
+      setIsSearching(true);
+      const foods = await foodService.searchFoods(manualCode);
+
+      if (foods && foods.length > 0) {
+        setFoundProducts(foods.slice(0, MAX_SEARCH_RESULTS));
+        setSelectedProduct(foods[0]); // Select first by default
+        setScanState('found');
+      } else {
+        setScanState('notfound');
+        // Pre-fill name if it looks like a name not a number
+        if (isNaN(Number(manualCode))) {
+          setManualName(manualCode);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Lỗi', 'Không thể tìm kiếm sản phẩm');
+    } finally {
+      setIsSearching(false);
+      setShowManualInput(false);
+    }
+  };
+
+  const handleAddToFridge = async () => {
+    if (!selectedProduct && scanState === 'found') return;
+
+    try {
+      setIsSearching(true); // Reuse loading state
+
+      let foodName = '';
+
+      if (scanState === 'found' && selectedProduct) {
+        foodName = selectedProduct.name;
+      } else if (scanState === 'notfound') {
+        // Creating a new item ad-hoc involves finding or creating the Food first usually.
+        // But fridgeService.createFridgeItem takes foodName. Backend handles fuzzy match or create?
+        // Assuming backend handles "foodName" by looking it up.
+        if (!manualName.trim()) {
+          Alert.alert('Lỗi', 'Vui lòng nhập tên sản phẩm');
+          setIsSearching(false);
+          return;
+        }
+        foodName = manualName;
+
+        // Ideally we should create the food first using foodService if it doesn't exist, 
+        // but for "Quick Add" maybe we rely on backend logic or just passing the name.
+        // The current fridgeService.createFridgeItem uses api.post('/fridge', { foodName ... })
+        // Checks if backend supports creating food on the fly? 
+        // If not, we should probably use FoodService.createFood first if we want to be safe.
+        // Let's assume for "Not Found" we treat it as "Create Custom Item" flow simplified.
+
+        // 1. Try to create food if we are in "notfound" state to ensure it exists
+        try {
+          await foodService.createFood({
+            name: foodName,
+            foodCategoryName: 'Khác', // Default
+            unitName: 'gói'
+          });
+        } catch (e) {
+          // Ignore if already exists or fails, try adding to fridge anyway
+          console.log("Auto-create food result/error", e);
+        }
+      }
+
+      // Calculate expiry
+      // For now, simple logic: if user entered text, try to parse or just default to 3 days if invalid?
+      // The UI text input is just text. Let's force a default if empty.
+      // In a real app we need a date picker.
+      const days = parseInt(expiryDate) || 3;
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + days);
+
+      await fridgeService.createFridgeItem({
+        foodName: foodName,
+        quantity: 1,
+        expiredAt: expiry.toISOString()
+      });
+
+      Alert.alert('Thành công', 'Đã thêm vào tủ lạnh');
+      if (onSuccess) onSuccess();
+      handleClose();
+
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Lỗi', error.message || 'Không thể thêm vào tủ lạnh');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleClose = () => {
     setScanState('scanning');
     setShowManualInput(false);
     setManualCode('');
+    setManualName('');
+    setExpiryDate('');
+    setSelectedProduct(null);
+    setFoundProducts([]);
     onClose();
   };
 
@@ -53,7 +161,7 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
                   <View style={[styles.corner, styles.cornerTopRight]} />
                   <View style={[styles.corner, styles.cornerBottomLeft]} />
                   <View style={[styles.corner, styles.cornerBottomRight]} />
-                  
+
                   {/* Scanning line */}
                   <View style={styles.scanLine} />
                 </View>
@@ -84,7 +192,7 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
                 onPress={() => setShowManualInput(true)}
               >
                 <Ionicons name="keypad-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.manualButtonText}>Nhập mã thủ công</Text>
+                <Text style={styles.manualButtonText}>Nhập mã/tên thủ công</Text>
               </TouchableOpacity>
             </View>
 
@@ -93,28 +201,29 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
               <View style={styles.manualOverlay}>
                 <View style={styles.manualCard}>
                   <View style={styles.manualHeader}>
-                    <Text style={styles.manualTitle}>Nhập mã vạch</Text>
+                    <Text style={styles.manualTitle}>Nhập mã hoặc tên</Text>
                     <TouchableOpacity onPress={() => setShowManualInput(false)}>
                       <Ionicons name="close" size={24} color="#6B7280" />
                     </TouchableOpacity>
                   </View>
                   <TextInput
                     style={styles.manualInput}
-                    placeholder="8934567890123"
+                    placeholder="VD: 893... hoặc 'Nước tương'"
                     placeholderTextColor="#9CA3AF"
                     value={manualCode}
                     onChangeText={setManualCode}
-                    keyboardType="numeric"
                     autoFocus
                   />
                   <TouchableOpacity
                     style={styles.searchButton}
-                    onPress={() => {
-                      setShowManualInput(false);
-                      handleScan();
-                    }}
+                    onPress={handleManualSearch}
+                    disabled={isSearching}
                   >
-                    <Text style={styles.searchButtonText}>Tìm kiếm</Text>
+                    {isSearching ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.searchButtonText}>Tìm kiếm</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -132,18 +241,21 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
               <Text style={styles.resultTitle}>Tìm thấy sản phẩm!</Text>
 
               <View style={styles.productInfo}>
-                <Text style={styles.productName}>{foundProduct.name}</Text>
-                <Text style={styles.productDetail}>Chai 500ml</Text>
+                <Text style={styles.productName}>{selectedProduct?.name}</Text>
+                <Text style={styles.productDetail}>Đơn vị: {selectedProduct?.unitId?.name || 'Cái'}</Text>
               </View>
 
               <View style={styles.expirySection}>
                 <Text style={styles.expiryLabel}>
-                  Hạn sử dụng (gợi ý: {foundProduct.defaultExpiry} ngày)
+                  Hạn sử dụng (số ngày)
                 </Text>
                 <TextInput
                   style={styles.dateInput}
-                  placeholder="Chọn ngày hết hạn"
+                  placeholder="VD: 3"
                   placeholderTextColor="#9CA3AF"
+                  value={expiryDate}
+                  onChangeText={setExpiryDate}
+                  keyboardType="numeric"
                 />
               </View>
 
@@ -151,8 +263,12 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
                 <TouchableOpacity style={styles.resultCancelButton} onPress={handleClose}>
                   <Text style={styles.resultCancelText}>Hủy</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.resultSaveButton} onPress={handleClose}>
-                  <Text style={styles.resultSaveText}>Lưu</Text>
+                <TouchableOpacity
+                  style={styles.resultSaveButton}
+                  onPress={handleAddToFridge}
+                  disabled={isSearching}
+                >
+                  {isSearching ? <ActivityIndicator color="#FFF" /> : <Text style={styles.resultSaveText}>Lưu</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -168,7 +284,7 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
               </View>
               <Text style={styles.resultTitle}>Chưa có dữ liệu</Text>
               <Text style={styles.notFoundSubtitle}>
-                Chưa có thông tin cho mã này. Bạn có thể thêm thủ công.
+                Không tìm thấy sản phẩm. Bạn có thể thêm thủ công.
               </Text>
 
               <View style={styles.manualForm}>
@@ -178,16 +294,21 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
                     style={styles.formInput}
                     placeholder="VD: Nước tương..."
                     placeholderTextColor="#9CA3AF"
+                    value={manualName}
+                    onChangeText={setManualName}
                     autoFocus
                   />
                 </View>
 
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Hạn sử dụng</Text>
+                  <Text style={styles.formLabel}>Hạn sử dụng (số ngày)</Text>
                   <TextInput
                     style={styles.formInput}
-                    placeholder="Chọn ngày hết hạn"
+                    placeholder="VD: 30"
                     placeholderTextColor="#9CA3AF"
+                    value={expiryDate}
+                    onChangeText={setExpiryDate}
+                    keyboardType="numeric"
                   />
                 </View>
               </View>
@@ -199,8 +320,12 @@ export function BarcodeScannerModal({ isOpen, onClose }: BarcodeScannerModalProp
                 >
                   <Text style={styles.resultCancelText}>Quét lại</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.resultSaveButton} onPress={handleClose}>
-                  <Text style={styles.resultSaveText}>Lưu</Text>
+                <TouchableOpacity
+                  style={styles.resultSaveButton}
+                  onPress={handleAddToFridge}
+                  disabled={isSearching}
+                >
+                  {isSearching ? <ActivityIndicator color="#FFF" /> : <Text style={styles.resultSaveText}>Lưu</Text>}
                 </TouchableOpacity>
               </View>
             </View>

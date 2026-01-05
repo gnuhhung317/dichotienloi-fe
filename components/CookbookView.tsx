@@ -4,11 +4,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native'; // If available, or use useEffect
 import { recipeService, Recipe } from '../services/recipe.service';
 
+import { RecipeDetailModal } from './RecipeDetailModal';
+
 interface CookbookViewProps {
   onAddRecipe: () => void;
+  onEditRecipe: (recipe: Recipe) => void;
 }
 
-export function CookbookView({ onAddRecipe }: CookbookViewProps) {
+export function CookbookView({ onAddRecipe, onEditRecipe }: CookbookViewProps) {
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,7 +36,13 @@ export function CookbookView({ onAddRecipe }: CookbookViewProps) {
   });
 
   const renderRecipeItem = ({ item }: { item: Recipe }) => (
-    <TouchableOpacity style={styles.recipeCard}>
+    <TouchableOpacity
+      style={styles.recipeCard}
+      onPress={() => {
+        setSelectedRecipe(item);
+        setShowDetailModal(true);
+      }}
+    >
       <Image
         source={{ uri: item.image || 'https://via.placeholder.com/150' }}
         style={styles.recipeImage}
@@ -88,6 +99,19 @@ export function CookbookView({ onAddRecipe }: CookbookViewProps) {
       <TouchableOpacity style={styles.fab} onPress={onAddRecipe}>
         <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
+
+      <RecipeDetailModal
+        isOpen={showDetailModal}
+        recipe={selectedRecipe}
+        onClose={() => setShowDetailModal(false)}
+        onEdit={(recipe) => {
+          setShowDetailModal(false);
+          onEditRecipe(recipe);
+        }}
+        onDeleteSuccess={() => {
+          fetchRecipes();
+        }}
+      />
     </View>
   );
 }

@@ -86,6 +86,36 @@ class RecipeService {
     async deleteRecipe(recipeId: string) {
         await api.delete('/recipe', { data: { recipeId } });
     }
+    async updateRecipe(recipeId: string, data: CreateRecipeDTO & { image?: string }): Promise<Recipe> {
+        if (data.image && !data.image.startsWith('http')) {
+            const formData = new FormData();
+            formData.append('recipeId', recipeId);
+            formData.append('name', data.name);
+            formData.append('description', data.description);
+            formData.append('groupOnly', String(data.groupOnly));
+            if (data.ingredients) {
+                formData.append('ingredients', JSON.stringify(data.ingredients));
+            }
+
+            const filename = data.image.split('/').pop() || 'photo.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+
+            formData.append('image', {
+                uri: data.image,
+                name: filename,
+                type: type,
+            } as any);
+
+            const response = await api.put('/recipe', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return response.data;
+        } else {
+            const response = await api.put('/recipe', { ...data, recipeId });
+            return response.data;
+        }
+    }
 }
 
 export const recipeService = new RecipeService();

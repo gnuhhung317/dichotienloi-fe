@@ -38,6 +38,13 @@ class UserService {
       return null;
     }
   }
+
+  /**
+   * Đổi mật khẩu
+   */
+  async changePassword(data: any): Promise<void> {
+    await api.put('/user/password', data);
+  }
 }
 
 export default new UserService();

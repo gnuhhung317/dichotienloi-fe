@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { InviteMemberModal } from './InviteMemberModal';
 import { CreateGroupModal } from './CreateGroupModal';
 import { EditProfileModal } from './EditProfileModal';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 
@@ -17,6 +18,7 @@ export function Profile({ onLogout }: ProfileProps) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -95,7 +97,7 @@ export function Profile({ onLogout }: ProfileProps) {
               <Text style={styles.roleBadgeText}>{user.role}</Text>
             </View>
           )}
-          
+
           {/* Edit Profile Button */}
           <TouchableOpacity
             style={styles.editProfileButton}
@@ -111,7 +113,7 @@ export function Profile({ onLogout }: ProfileProps) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Nhóm gia đình</Text>
             {hasGroup && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.inviteButton}
                 onPress={() => setShowInviteModal(true)}
               >
@@ -156,7 +158,7 @@ export function Profile({ onLogout }: ProfileProps) {
 
               {/* Members List */}
               {members.map((member, index) => (
-                <View 
+                <View
                   key={member._id}
                   style={[
                     styles.memberRow,
@@ -215,6 +217,20 @@ export function Profile({ onLogout }: ProfileProps) {
               <View style={styles.settingInfo}>
                 <Text style={styles.settingTitle}>Quyền riêng tư</Text>
                 <Text style={styles.settingSubtitle}>Bảo mật và quyền truy cập</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.settingRow, styles.settingBorder]}
+              onPress={() => setShowChangePasswordModal(true)}
+            >
+              <View style={[styles.settingIcon, styles.greenIcon]}>
+                <Ionicons name="key" size={20} color="#16A34A" />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingTitle}>Đổi mật khẩu</Text>
+                <Text style={styles.settingSubtitle}>Cập nhật mật khẩu bảo mật</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -281,7 +297,7 @@ export function Profile({ onLogout }: ProfileProps) {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
         >
@@ -292,9 +308,9 @@ export function Profile({ onLogout }: ProfileProps) {
 
       {/* Invite Member Modal */}
       {showInviteModal && (
-        <InviteMemberModal 
+        <InviteMemberModal
           isOpen={showInviteModal}
-          onClose={() => setShowInviteModal(false)} 
+          onClose={() => setShowInviteModal(false)}
         />
       )}
 
@@ -313,6 +329,15 @@ export function Profile({ onLogout }: ProfileProps) {
           isOpen={showEditProfileModal}
           onClose={() => setShowEditProfileModal(false)}
           onSuccess={() => setShowEditProfileModal(false)}
+        />
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <ChangePasswordModal
+          isOpen={showChangePasswordModal}
+          onClose={() => setShowChangePasswordModal(false)}
+          onSuccess={() => setShowChangePasswordModal(false)}
         />
       )}
     </ScrollView>
@@ -520,6 +545,9 @@ const styles = StyleSheet.create({
   },
   orangeIcon: {
     backgroundColor: '#FED7AA',
+  },
+  greenIcon: {
+    backgroundColor: '#DCFCE7',
   },
   settingInfo: {
     flex: 1,

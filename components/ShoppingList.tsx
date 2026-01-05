@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { shoppingService, ShoppingItem } from '../services/shopping.service';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
+import { EditShoppingItemModal } from './EditShoppingItemModal';
+import { API_CONFIG } from '../config/app.config';
 
 import { useGroup } from '../context/GroupContext';
 
@@ -11,6 +13,8 @@ export function ShoppingList() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
 
   // Load shopping list on mount
   useEffect(() => {
@@ -45,6 +49,22 @@ export function ShoppingList() {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể thêm sản phẩm');
       console.error('Add item error:', error);
     }
+  };
+
+  const handleUpdateItem = async (itemId: string, newQuantity: number) => {
+    try {
+      const updatedItem = await shoppingService.updateItemQuantity({ itemId, newQuantity });
+      setItems(items.map(item => item._id === itemId ? updatedItem : item));
+      Alert.alert('Thành công', 'Đã cập nhật số lượng');
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật sản phẩm');
+      console.error('Update item error:', error);
+    }
+  };
+
+  const openEditModal = (item: ShoppingItem) => {
+    setEditingItem(item);
+    setShowEditModal(true);
   };
 
   const handleMarkAsBought = async (itemId: string, currentStatus: boolean) => {
@@ -151,20 +171,25 @@ export function ShoppingList() {
                       )}
                     </View>
                   </TouchableOpacity>
-                  <View style={styles.itemInfo}>
+
+                  <TouchableOpacity
+                    style={styles.itemInfo}
+                    onPress={() => openEditModal(item)}
+                    activeOpacity={0.7}
+                  >
                     <Text style={styles.itemNameDone}>
                       {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
                     </Text>
                     {typeof item.foodId === 'object' && item.foodId.image && (
                       <Image
-                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
                         style={styles.itemImage}
                       />
                     )}
                     <Text style={styles.itemQuantity}>
                       {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() => handleDeleteItem(item._id)}
@@ -192,20 +217,24 @@ export function ShoppingList() {
                       <Ionicons name="checkmark" size={16} color="#10B981" />
                     </View>
                   </TouchableOpacity>
-                  <View style={styles.itemInfo}>
+                  <TouchableOpacity
+                    style={styles.itemInfo}
+                    onPress={() => openEditModal(item)}
+                    activeOpacity={0.7}
+                  >
                     <Text style={styles.itemNameChecked}>
                       {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
                     </Text>
                     {typeof item.foodId === 'object' && item.foodId.image && (
                       <Image
-                        source={{ uri: `http://localhost:4000/uploads/${item.foodId.image}` }}
+                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
                         style={styles.itemImage}
                       />
                     )}
                     <Text style={styles.itemQuantity}>
                       {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() => handleDeleteItem(item._id)}
@@ -217,24 +246,32 @@ export function ShoppingList() {
             </>
           )}
         </View>
-      </ScrollView>
+      </ScrollView >
 
       {/* FAB Button */}
-      <TouchableOpacity
+      < TouchableOpacity
         style={styles.fab}
-        onPress={() => setShowAddModal(true)}
+        onPress={() => setShowAddModal(true)
+        }
         activeOpacity={0.8}
       >
         <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      </TouchableOpacity >
 
       {/* Add Modal */}
-      <AddToShoppingListModal
+      < AddToShoppingListModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddItem}
       />
-    </View>
+
+      <EditShoppingItemModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleUpdateItem}
+        item={editingItem}
+      />
+    </View >
   );
 }
 

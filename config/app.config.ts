@@ -5,24 +5,25 @@ import Constants from 'expo-constants';
 const getApiUrl = () => {
   // Nếu chạy trên web, dùng localhost
   if (Platform.OS === 'web') {
-    return 'http://localhost:4000/api';
+    return 'http://54.251.156.243/api';
   }
-  
+  return 'http://54.251.156.243/api';
   // Lấy IP từ Expo debugger (khi dùng Expo Go)
-  const expoDebuggerHost = Constants.expoConfig?.hostUri?.split(':').shift();
+  // const expoDebuggerHost = Constants.expoConfig?.hostUri?.split(':').shift();
   
-  if (expoDebuggerHost) {
-    return `http://${expoDebuggerHost}:4000/api`;
-  }
+  // if (expoDebuggerHost) {
+  //   return `http://${expoDebuggerHost}:4000/api`;
+  // }
   
-  // Fallback: Thay YOUR_LOCAL_IP bằng IP thực của máy bạn
-  // Tìm IP: Windows → ipconfig, Mac/Linux → ifconfig
-  return 'http://192.168.1.7:4000/api'; // ✅ IP của máy bạn
+  // // Fallback: Thay YOUR_LOCAL_IP bằng IP thực của máy bạn
+  // // Tìm IP: Windows → ipconfig, Mac/Linux → ifconfig
+  // return 'http://192.168.1.7:4000/api'; // ✅ IP của máy bạn
 };
 
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: getApiUrl(),
+  UPLOADS_URL: 'http://54.251.156.243/uploads',
   
   // Timeout cho request (ms)
   TIMEOUT: 10000,

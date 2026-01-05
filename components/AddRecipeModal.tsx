@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { recipeService } from '../services/recipe.service';
+import { recipeService, Recipe } from '../services/recipe.service';
 import { foodService } from '../services/food.service';
+import { API_CONFIG } from '../config/app.config';
 
 interface AddRecipeModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    initialData?: Recipe | null;
 }
 
-export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalProps) {
+export function AddRecipeModal({ isOpen, onClose, onSuccess, initialData }: AddRecipeModalProps) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [ingredients, setIngredients] = useState<{ foodId: string; foodName: string; quantity: string; unitId: string; unitName: string }[]>([]);
@@ -34,8 +36,38 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalPro
     useEffect(() => {
         if (isOpen) {
             loadMetadata();
+            if (initialData) {
+                // Populate form
+                setName(initialData.name);
+                setDescription(initialData.description);
+                // Map ingredients
+                const mappedIngs = initialData.ingredients.map(ing => ({
+                    foodId: typeof ing.foodId === 'object' ? ing.foodId._id : ing.foodId,
+                    foodName: typeof ing.foodId === 'object' ? ing.foodId.name : 'Unknown',
+                    quantity: ing.quantity.toString(),
+                    unitId: typeof ing.unitId === 'object' ? ing.unitId._id : ing.unitId,
+                    unitName: typeof ing.unitId === 'object' ? ing.unitId.name : 'đơn vị'
+                }));
+                setIngredients(mappedIngs);
+                if (initialData.image) {
+                    // Check if it's full URL or relative
+                    if (initialData.image.startsWith('http')) {
+                        setImageUri(initialData.image);
+                    } else {
+                        setImageUri(`${API_CONFIG.UPLOADS_URL}/${initialData.image}`);
+                    }
+                } else {
+                    setImageUri(null);
+                }
+            } else {
+                // Reset form
+                setName('');
+                setDescription('');
+                setIngredients([]);
+                setImageUri(null);
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, initialData]);
 
     const loadMetadata = async () => {
         const [cats, us] = await Promise.all([
@@ -141,22 +173,29 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalPro
                 unitId: ing.unitId
             }));
 
-            await recipeService.createRecipe({
-                name,
-                description,
-                groupOnly: true,
-                ingredients: payloadIngredients,
-                image: imageUri || undefined
-            });
+            if (initialData) {
+                await recipeService.updateRecipe(initialData._id, {
+                    name,
+                    description,
+                    groupOnly: true,
+                    ingredients: payloadIngredients,
+                    image: imageUri || undefined
+                });
+            } else {
+                await recipeService.createRecipe({
+                    name,
+                    description,
+                    groupOnly: true,
+                    ingredients: payloadIngredients,
+                    image: imageUri || undefined
+                });
+            }
             onSuccess();
             onClose();
-            setName('');
-            setDescription('');
-            setIngredients([]);
-            setImageUri(null);
+            // Form reset happens in useEffect when reopening or clearing initialData
         } catch (error) {
-            console.error('Create recipe error:', error);
-            alert('Không thể tạo công thức');
+            console.error('Save recipe error:', error);
+            alert('Không thể lưu công thức');
         } finally {
             setIsSubmitting(false);
         }
@@ -172,7 +211,7 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalPro
             <View style={styles.overlay}>
                 <View style={styles.modal}>
                     <View style={styles.header}>
-                        <Text style={styles.title}>Thêm công thức mới</Text>
+                        <Text style={styles.title}>{initialData ? 'Chỉnh sửa công thức' : 'Thêm công thức mới'}</Text>
                         <TouchableOpacity onPress={onClose}>
                             <Ionicons name="close" size={24} color="#6B7280" />
                         </TouchableOpacity>
@@ -355,7 +394,7 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess }: AddRecipeModalPro
                             {isSubmitting ? (
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
-                                <Text style={styles.submitButtonText}>Tạo công thức</Text>
+                                <Text style={styles.submitButtonText}>{initialData ? 'Lưu thay đổi' : 'Tạo công thức'}</Text>
                             )}
                         </TouchableOpacity>
                     </ScrollView>

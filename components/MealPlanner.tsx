@@ -5,6 +5,7 @@ import { AddMealModal } from './AddMealModal';
 import { CookbookView } from './CookbookView';
 import { AddRecipeModal } from './AddRecipeModal';
 import { mealService, MealPlanItem } from '../services/meal.service';
+import { Recipe } from '../services/recipe.service';
 
 import { useGroup } from '../context/GroupContext';
 
@@ -12,7 +13,9 @@ export function MealPlanner() {
   const { hasGroup } = useGroup();
   const [currentWeek, setCurrentWeek] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
+
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<{ date: Date; mealType: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'plan' | 'cookbook'>('plan');
 
@@ -258,6 +261,11 @@ export function MealPlanner() {
         <CookbookView
           key={refreshCookbook} // Force remount to refresh
           onAddRecipe={() => {
+            setEditingRecipe(null);
+            setShowAddRecipeModal(true);
+          }}
+          onEditRecipe={(recipe) => {
+            setEditingRecipe(recipe);
             setShowAddRecipeModal(true);
           }}
         />
@@ -283,7 +291,6 @@ export function MealPlanner() {
         />
       )}
 
-      {/* Add Recipe Modal */}
       {showAddRecipeModal && (
         <AddRecipeModal
           isOpen={showAddRecipeModal}
@@ -291,6 +298,7 @@ export function MealPlanner() {
           onSuccess={() => {
             setRefreshCookbook(prev => prev + 1); // Trigger refresh
           }}
+          initialData={editingRecipe}
         />
       )}
     </View>

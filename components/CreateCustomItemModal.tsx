@@ -1,18 +1,26 @@
-import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { foodService } from '../services/food.service';
+import { fridgeService } from '../services/fridge.service';
 
 interface CreateCustomItemModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModalProps) {
+export function CreateCustomItemModal({ isOpen, onClose, onSuccess }: CreateCustomItemModalProps) {
   const [selectedIcon, setSelectedIcon] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [defaultExpiry, setDefaultExpiry] = useState(3);
   const [itemName, setItemName] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbCategories, setDbCategories] = useState<{ id: string, name: string }[]>([]);
 
   const foodIcons = [
     { id: 'vegetables', icon: '🥬', label: 'Rau' },
@@ -37,31 +45,129 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
     { id: 'other', icon: '📦', label: 'Khác' },
   ];
 
-  const categories = [
-    { id: 'vegetables', label: 'Rau củ', icon: '🥬' },
-    { id: 'meat', label: 'Thịt & Cá', icon: '🥩' },
-    { id: 'dairy', label: 'Sữa & Trứng', icon: '🥛' },
-    { id: 'frozen', label: 'Đông lạnh', icon: '❄️' },
-    { id: 'bakery', label: 'Bánh mì', icon: '🍞' },
-    { id: 'drinks', label: 'Đồ uống', icon: '🥤' },
-    { id: 'condiments', label: 'Gia vị', icon: '🧂' },
-    { id: 'snacks', label: 'Đồ ăn vặt', icon: '🍿' },
-    { id: 'other', label: 'Khác', icon: '📦' },
-  ];
+  useEffect(() => {
+    if (isOpen) {
+      loadMetadata();
+    }
+  }, [isOpen]);
+
+  const loadMetadata = async () => {
+    try {
+      const cats = await foodService.getCategoriesAsStrings();
+      setDbCategories(cats.map(c => ({ id: c, name: c })));
+    } catch (e) {
+      console.error("Failed to load categories", e);
+    }
+  };
+
+  const pickImage = async (useCamera: boolean) => {
+    let result;
+    if (useCamera) {
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+    } else {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+    }
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      setSelectedIcon(''); // Clear icon if image is picked
+    }
+  };
+
+  const getCategoryIcon = (name: string): string => {
+    const lower = name.toLowerCase();
+    if (lower.includes('rau') || lower.includes('củ')) return '🥬';
+    if (lower.includes('thịt')) return '🥩';
+    if (lower.includes('cá') || lower.includes('hải sản')) return '🐟';
+    if (lower.includes('sữa') || lower.includes('trứng')) return '🥛';
+    if (lower.includes('đông lạnh')) return '❄️';
+    if (lower.includes('đồ uống')) return '🥤';
+    if (lower.includes('bánh')) return '🍞';
+    if (lower.includes('gia vị')) return '🧂';
+    if (lower.includes('ăn vặt')) return '🍿';
+    return '📦';
+  };
+
+  const handleSubmit = async () => {
+    if (!itemName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên món');
+      return;
+    }
+    if (!selectedCategory) {
+      Alert.alert('Lỗi', 'Vui lòng chọn danh mục');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // 1. Create Food
+      const newFood = await foodService.createFood({
+        name: itemName.trim(),
+        foodCategoryName: selectedCategory,
+        unitName: 'kg', // Default unit for custom items for now
+        image: imageUri || undefined
+      });
+
+      // 2. Add to Fridge
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + defaultExpiry);
+
+      await fridgeService.createFridgeItem({
+        foodName: newFood.name, // The backend likely resolves this by name or we might need to update createFridgeItem to take ID if possible. 
+        // Looking at fridgeService.createFridgeItem, it takes CreateFridgeItemDTO { foodName, quantity, expiredAt }. 
+        // The backend ideally uses foodName to find the Food. Since we just created it, it should be found.
+        quantity: 1, // Default quantity
+        expiredAt: expiryDate.toISOString()
+      });
+
+      Alert.alert('Thành công', 'Đã tạo món mới và thêm vào tủ lạnh!');
+
+      if (onSuccess) onSuccess();
+      handleClose();
+
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Lỗi', error.message || 'Không thể tạo món mới');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    // Reset state
+    setItemName('');
+    setSelectedCategory('');
+    setSelectedIcon('');
+    setImageUri(null);
+    setDefaultExpiry(3);
+    setDescription('');
+    onClose();
+  };
 
   return (
     <Modal
       visible={isOpen}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Tạo món mới</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose} disabled={isSubmitting}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -71,51 +177,73 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
             <View style={styles.section}>
               <Text style={styles.label}>Hình ảnh đại diện</Text>
               <View style={styles.uploadRow}>
-                <TouchableOpacity style={[styles.uploadButton, styles.uploadButtonGreen]}>
+                <TouchableOpacity
+                  style={[styles.uploadButton, styles.uploadButtonGreen]}
+                  onPress={() => pickImage(true)}
+                  disabled={isSubmitting}
+                >
                   <Ionicons name="camera" size={32} color="#FFFFFF" />
                   <Text style={styles.uploadButtonText}>Chụp ảnh</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.uploadButton, styles.uploadButtonBlue]}>
+                <TouchableOpacity
+                  style={[styles.uploadButton, styles.uploadButtonBlue]}
+                  onPress={() => pickImage(false)}
+                  disabled={isSubmitting}
+                >
                   <Ionicons name="images" size={32} color="#FFFFFF" />
                   <Text style={styles.uploadButtonText}>Thư viện</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.hint}>Hoặc chọn icon bên dưới</Text>
+              {imageUri && (
+                <View style={styles.previewContainer}>
+                  <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                  <TouchableOpacity
+                    style={styles.removeImageBtn}
+                    onPress={() => setImageUri(null)}
+                  >
+                    <Ionicons name="close-circle" size={24} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!imageUri && <Text style={styles.hint}>Hoặc chọn icon bên dưới</Text>}
             </View>
 
             {/* Icon Selection */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Chọn icon</Text>
-              <View style={styles.iconGrid}>
-                <ScrollView
-                  style={styles.iconScrollView}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <View style={styles.iconGridInner}>
-                    {foodIcons.map((item) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[
-                          styles.iconButton,
-                          selectedIcon === item.id && styles.iconButtonActive,
-                        ]}
-                        onPress={() => setSelectedIcon(item.id)}
-                      >
-                        <Text style={styles.iconEmoji}>{item.icon}</Text>
-                        <Text
+            {!imageUri && (
+              <View style={styles.section}>
+                <Text style={styles.label}>Chọn icon</Text>
+                <View style={styles.iconGrid}>
+                  <ScrollView
+                    style={styles.iconScrollView}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <View style={styles.iconGridInner}>
+                      {foodIcons.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
                           style={[
-                            styles.iconLabel,
-                            selectedIcon === item.id && styles.iconLabelActive,
+                            styles.iconButton,
+                            selectedIcon === item.id && styles.iconButtonActive,
                           ]}
+                          onPress={() => setSelectedIcon(item.id)}
+                          disabled={isSubmitting}
                         >
-                          {item.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
+                          <Text style={styles.iconEmoji}>{item.icon}</Text>
+                          <Text
+                            style={[
+                              styles.iconLabel,
+                              selectedIcon === item.id && styles.iconLabelActive,
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
               </View>
-            </View>
+            )}
 
             {/* Item Name */}
             <View style={styles.section}>
@@ -126,6 +254,7 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
                 placeholderTextColor="#9CA3AF"
                 value={itemName}
                 onChangeText={setItemName}
+                editable={!isSubmitting}
               />
               <Text style={styles.hint}>Đặt tên dễ nhận biết để tìm kiếm sau này</Text>
             </View>
@@ -134,17 +263,18 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
             <View style={styles.section}>
               <Text style={styles.label}>Danh mục *</Text>
               <View style={styles.categoryGrid}>
-                {categories.map((category) => (
+                {dbCategories.map((category) => (
                   <TouchableOpacity
                     key={category.id}
                     style={[
                       styles.categoryButton,
-                      selectedCategory === category.id && styles.categoryButtonActive,
+                      selectedCategory === category.name && styles.categoryButtonActive,
                     ]}
-                    onPress={() => setSelectedCategory(category.id)}
+                    onPress={() => setSelectedCategory(category.name)}
+                    disabled={isSubmitting}
                   >
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                    <Text style={styles.categoryLabel}>{category.label}</Text>
+                    <Text style={styles.categoryIcon}>{getCategoryIcon(category.name)}</Text>
+                    <Text style={styles.categoryLabel}>{category.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -159,7 +289,7 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
                     <View
                       style={[
                         styles.sliderFill,
-                        { width: `${(defaultExpiry / 365) * 100}%` },
+                        { width: `${(defaultExpiry / 30) * 100}%` }, // Scale to 30 days visual for better UX or 365
                       ]}
                     />
                   </View>
@@ -171,23 +301,25 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
                   <TouchableOpacity
                     style={styles.sliderButton}
                     onPress={() => setDefaultExpiry(Math.max(1, defaultExpiry - 1))}
+                    disabled={isSubmitting}
                   >
                     <Ionicons name="remove" size={20} color="#374151" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.sliderButton}
                     onPress={() => setDefaultExpiry(Math.min(365, defaultExpiry + 1))}
+                    disabled={isSubmitting}
                   >
                     <Ionicons name="add" size={20} color="#374151" />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.sliderLabels}>
                   <Text style={styles.sliderLabelText}>1 ngày</Text>
-                  <Text style={styles.sliderLabelText}>1 năm</Text>
+                  <Text style={styles.sliderLabelText}>Lâu dài</Text>
                 </View>
                 <View style={styles.infoBox}>
                   <Text style={styles.infoText}>
-                    💡 Khi thêm món này vào tủ lạnh, app sẽ tự điền {defaultExpiry} ngày
+                    💡 Khi thêm món này vào tủ lạnh, app sẽ tự điền {defaultExpiry} ngày sử dụng
                   </Text>
                 </View>
               </View>
@@ -204,12 +336,13 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
                 onChangeText={setDescription}
                 multiline
                 numberOfLines={3}
+                editable={!isSubmitting}
               />
             </View>
 
             {/* Action Buttons */}
             <View style={styles.actions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <TouchableOpacity style={styles.cancelButton} onPress={handleClose} disabled={isSubmitting}>
                 <Text style={styles.cancelButtonText}>Hủy</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -217,13 +350,14 @@ export function CreateCustomItemModal({ isOpen, onClose }: CreateCustomItemModal
                   styles.submitButton,
                   (!itemName || !selectedCategory) && styles.submitButtonDisabled,
                 ]}
-                disabled={!itemName || !selectedCategory}
-                onPress={() => {
-                  console.log('Create custom item:', { itemName, selectedIcon, selectedCategory, defaultExpiry });
-                  onClose();
-                }}
+                disabled={!itemName || !selectedCategory || isSubmitting}
+                onPress={handleSubmit}
               >
-                <Text style={styles.submitButtonText}>Tạo món</Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Tạo món</Text>
+                )}
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -293,6 +427,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+  },
+  previewContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+    position: 'relative',
+    width: 120, // thumbnail size
+    height: 120,
+    alignSelf: 'center'
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: 'white',
+    borderRadius: 12
   },
   hint: {
     fontSize: 12,
