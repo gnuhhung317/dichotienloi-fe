@@ -66,25 +66,24 @@ class FoodService {
         formData.append('foodCategoryName', data.foodCategoryName);
         formData.append('unitName', data.unitName);
 
+        // Get filename and type from URI
         const filename = data.image.split('/').pop() || 'photo.jpg';
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
 
-        formData.append('image', {
-          uri: data.image,
-          name: filename,
-          type: type,
-        } as any);
+        // Fetch the image and convert to blob
+        const response = await fetch(data.image);
+        const blob = await response.blob();
+        
+        // Append blob to formData with proper format
+        formData.append('image', blob, filename);
 
-        const response = await api.post('/food', formData, {
+        const uploadResponse = await api.post('/food', formData, {
           headers: {
-            'Content-Type': null as any, // Unset default application/json
-          },
-          transformRequest: (data, headers) => {
-            return formData; // Avoid axios messing with it
+            'Content-Type': 'multipart/form-data',
           },
         });
-        return response.data.data || response.data;
+        return uploadResponse.data.data || uploadResponse.data;
       } else {
         const response = await api.post('/food', data);
         return response.data.data || response.data;
@@ -110,25 +109,24 @@ class FoodService {
         formData.append('newCategory', data.newCategory);
         formData.append('newUnit', data.newUnit);
 
+        // Get filename and type from URI
         const filename = data.image.split('/').pop() || 'photo.jpg';
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
 
-        formData.append('image', {
-          uri: data.image,
-          name: filename,
-          type: type,
-        } as any);
+        // Fetch the image and convert to blob
+        const response = await fetch(data.image);
+        const blob = await response.blob();
+        
+        // Append blob to formData
+        formData.append('image', blob, filename);
 
-        const response = await api.put('/food', formData, {
+        const uploadResponse = await api.put('/food', formData, {
           headers: {
-            'Content-Type': null as any,
-          },
-          transformRequest: (data, headers) => {
-            return formData; // Avoid axios messing with it
+            'Content-Type': 'multipart/form-data',
           },
         });
-        return response.data.data || response.data;
+        return uploadResponse.data.data || uploadResponse.data;
       } else {
         const response = await api.put('/food', data);
         return response.data.data || response.data;

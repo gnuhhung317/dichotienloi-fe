@@ -58,25 +58,24 @@ class RecipeService {
                 formData.append('ingredients', JSON.stringify(data.ingredients));
             }
 
+            // Get filename and type from URI
             const filename = data.image.split('/').pop() || 'photo.jpg';
             const match = /\.(\w+)$/.exec(filename);
             const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
 
-            formData.append('image', {
-                uri: data.image,
-                name: filename,
-                type: type,
-            } as any);
+            // Fetch the image and convert to blob
+            const response = await fetch(data.image);
+            const blob = await response.blob();
+            
+            // Append blob to formData
+            formData.append('image', blob, filename);
 
-            const response = await api.post('/recipe', formData, {
+            const uploadResponse = await api.post('/recipe', formData, {
                 headers: {
-                    'Content-Type': null as any,
-                },
-                transformRequest: (data, headers) => {
-                    return formData;
+                    'Content-Type': 'multipart/form-data',
                 },
             });
-            return response.data;
+            return uploadResponse.data;
         } else {
             const response = await api.post('/recipe', data);
             return response.data;
@@ -102,25 +101,24 @@ class RecipeService {
                 formData.append('ingredients', JSON.stringify(data.ingredients));
             }
 
+            // Get filename and type from URI
             const filename = data.image.split('/').pop() || 'photo.jpg';
             const match = /\.(\w+)$/.exec(filename);
             const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
 
-            formData.append('image', {
-                uri: data.image,
-                name: filename,
-                type: type,
-            } as any);
+            // Fetch the image and convert to blob
+            const response = await fetch(data.image);
+            const blob = await response.blob();
+            
+            // Append blob to formData
+            formData.append('image', blob, filename);
 
-            const response = await api.put('/recipe', formData, {
+            const uploadResponse = await api.put('/recipe', formData, {
                 headers: {
-                    'Content-Type': null as any,
-                },
-                transformRequest: (data, headers) => {
-                    return formData;
+                    'Content-Type': 'multipart/form-data',
                 },
             });
-            return response.data;
+            return uploadResponse.data;
         } else {
             const response = await api.put('/recipe', { ...data, recipeId });
             return response.data;

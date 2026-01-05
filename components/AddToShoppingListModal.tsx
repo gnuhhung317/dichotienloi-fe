@@ -3,17 +3,21 @@ import * as ImagePicker from 'expo-image-picker';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { foodService } from '../services/food.service';
+import { GroupMember } from '../services/group.service';
+import { API_CONFIG } from '../config/app.config';
 
 interface AddToShoppingListModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { foodId: string; quantity: number }) => Promise<void>;
+  onSubmit: (data: { foodId: string; quantity: number, assignedTo?: string }) => Promise<void>;
+  groupMembers: GroupMember[];
 }
 
 export function AddToShoppingListModal({
   isOpen,
   onClose,
   onSubmit,
+  groupMembers,
 }: AddToShoppingListModalProps) {
   const [quantity, setQuantity] = useState('1');
   const [itemName, setItemName] = useState('');
@@ -28,6 +32,8 @@ export function AddToShoppingListModal({
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('kg');
   const [imageUri, setImageUri] = useState<string | null>(null);
+
+  const [assignedTo, setAssignedTo] = useState<string>(''); // userId
 
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -97,6 +103,7 @@ export function AddToShoppingListModal({
     setIsNewItem(true);
     setShowSuggestions(false);
     setImageUri(null);
+    setAssignedTo('');
     if (categories.length > 0) setSelectedCategory(categories[0]);
     if (units.length > 0) setSelectedUnit(units[0]);
   };
@@ -157,6 +164,7 @@ export function AddToShoppingListModal({
       await onSubmit({
         foodId: foodIdToSubmit,
         quantity: parseFloat(quantity.replace(',', '.')) || 1,
+        assignedTo: assignedTo || undefined
       });
 
       resetForm();
@@ -307,6 +315,50 @@ export function AddToShoppingListModal({
                     </View>
                   </View>
                 </View>
+
+                {/* Assignment */}
+                <View style={styles.section}>
+                  <Text style={styles.label}>Giao cho (Tùy chọn)</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.avatarChip,
+                        assignedTo === '' && styles.avatarChipActive
+                      ]}
+                      onPress={() => setAssignedTo('')}
+                    >
+                      <View style={[styles.avatarPlaceholder, { backgroundColor: '#E5E7EB' }]}>
+                        <Ionicons name="people" size={16} color="#4B5563" />
+                      </View>
+                      <Text style={[styles.avatarName, assignedTo === '' && styles.avatarNameActive]}>Chung</Text>
+                    </TouchableOpacity>
+
+                    {groupMembers.map(member => (
+                      <TouchableOpacity
+                        key={member.userId}
+                        style={[
+                          styles.avatarChip,
+                          assignedTo === member.userId && styles.avatarChipActive
+                        ]}
+                        onPress={() => setAssignedTo(member.userId)}
+                      >
+                        {member.user?.avatarUrl ? (
+                          <Image source={{ uri: `${API_CONFIG.UPLOADS_URL}/${member.user.avatarUrl}` }} style={styles.avatarImg} />
+                        ) : (
+                          <View style={[styles.avatarPlaceholder, { backgroundColor: '#DBEAFE' }]}>
+                            <Text style={{ color: '#1E40AF', fontWeight: 'bold' }}>
+                              {member.user?.name?.charAt(0).toUpperCase() || '?'}
+                            </Text>
+                          </View>
+                        )}
+                        <Text style={[styles.avatarName, assignedTo === member.userId && styles.avatarNameActive]}>
+                          {member.user?.name || 'Unknown'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
               </>
             )}
           </ScrollView>
@@ -352,7 +404,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -572,4 +624,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  avatarChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 12,
+    paddingLeft: 4,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'transparent'
+  },
+  avatarChipActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#3B82F6'
+  },
+  avatarPlaceholder: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8
+  },
+  avatarImg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 8
+  },
+  avatarName: {
+    fontSize: 13,
+    color: '#374151'
+  },
+  avatarNameActive: {
+    color: '#1E40AF',
+    fontWeight: '600'
+  }
 });

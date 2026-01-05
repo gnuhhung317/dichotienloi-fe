@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Image } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ShoppingItem } from '../services/shopping.service';
+import { GroupMember } from '../services/group.service';
 import { API_CONFIG } from '../config/app.config';
 
 interface EditShoppingItemModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (itemId: string, newQuantity: number) => Promise<void>;
+    onSubmit: (itemId: string, newQuantity: number, assignedTo?: string) => Promise<void>;
     item: ShoppingItem | null;
+    groupMembers: GroupMember[];
 }
 
 export function EditShoppingItemModal({
@@ -16,13 +18,18 @@ export function EditShoppingItemModal({
     onClose,
     onSubmit,
     item,
+    groupMembers,
 }: EditShoppingItemModalProps) {
     const [quantity, setQuantity] = useState('1');
+    const [assignedTo, setAssignedTo] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen && item) {
             setQuantity(item.quantity.toString());
+            // Safe access to assignedTo._id or assignedTo string
+            const assignedId = typeof item.assignedTo === 'object' && item.assignedTo ? item.assignedTo._id : (typeof item.assignedTo === 'string' ? item.assignedTo : '');
+            setAssignedTo(assignedId);
         }
     }, [isOpen, item]);
 
@@ -44,7 +51,7 @@ export function EditShoppingItemModal({
 
         try {
             setIsSubmitting(true);
-            await onSubmit(item._id, val);
+            await onSubmit(item._id, val, assignedTo || undefined);
             onClose();
         } catch (error) {
             // Error handled in parent
@@ -65,13 +72,13 @@ export function EditShoppingItemModal({
                 <View style={styles.modal}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Chỉnh sửa số lượng</Text>
+                        <Text style={styles.title}>Chỉnh sửa món</Text>
                         <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
                             <Ionicons name="close" size={24} color="#6B7280" />
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.content}>
+                    <ScrollView style={styles.content}>
                         <View style={styles.itemInfo}>
                             {imageUrl ? (
                                 <Image source={{ uri: imageUrl }} style={styles.itemImage} />
@@ -112,7 +119,50 @@ export function EditShoppingItemModal({
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    </View>
+
+                        {/* Assignment */}
+                        <View style={styles.section}>
+                            <Text style={styles.label}>Giao cho (Tùy chọn)</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.avatarChip,
+                                        assignedTo === '' && styles.avatarChipActive
+                                    ]}
+                                    onPress={() => setAssignedTo('')}
+                                >
+                                    <View style={[styles.avatarPlaceholder, { backgroundColor: '#E5E7EB' }]}>
+                                        <Ionicons name="people" size={16} color="#4B5563" />
+                                    </View>
+                                    <Text style={[styles.avatarName, assignedTo === '' && styles.avatarNameActive]}>Chung</Text>
+                                </TouchableOpacity>
+
+                                {groupMembers.map(member => (
+                                    <TouchableOpacity
+                                        key={member.userId}
+                                        style={[
+                                            styles.avatarChip,
+                                            assignedTo === member.userId && styles.avatarChipActive
+                                        ]}
+                                        onPress={() => setAssignedTo(member.userId)}
+                                    >
+                                        {member.user?.avatarUrl ? (
+                                            <Image source={{ uri: `${API_CONFIG.UPLOADS_URL}/${member.user.avatarUrl}` }} style={styles.avatarImg} />
+                                        ) : (
+                                            <View style={[styles.avatarPlaceholder, { backgroundColor: '#DBEAFE' }]}>
+                                                <Text style={{ color: '#1E40AF', fontWeight: 'bold' }}>
+                                                    {member.user?.name?.charAt(0).toUpperCase() || '?'}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <Text style={[styles.avatarName, assignedTo === member.userId && styles.avatarNameActive]}>
+                                            {member.user?.name || 'Unknown'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </ScrollView>
 
                     {/* Actions */}
                     <View style={styles.actions}>
@@ -152,6 +202,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         paddingBottom: 20,
+        maxHeight: '90%',
     },
     header: {
         flexDirection: 'row',
@@ -169,6 +220,7 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 16,
+        // maxHeight: 500, // Remove fixed height to let it expand
     },
     itemInfo: {
         flexDirection: 'row',
@@ -201,7 +253,7 @@ const styles = StyleSheet.create({
     },
     section: {
         marginBottom: 20,
-        alignItems: 'center',
+        // alignItems: 'center', // Remove center to align chips left
     },
     label: {
         fontSize: 14,
@@ -213,6 +265,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        alignSelf: 'center', // Center quantity control specifically
     },
     quantityBtn: {
         width: 44,
@@ -263,4 +316,45 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#FFFFFF',
     },
+    chipRow: {
+        flexDirection: 'row',
+    },
+    avatarChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingRight: 12,
+        paddingLeft: 4,
+        paddingVertical: 4,
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: 'transparent'
+    },
+    avatarChipActive: {
+        backgroundColor: '#DBEAFE',
+        borderColor: '#3B82F6'
+    },
+    avatarPlaceholder: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8
+    },
+    avatarImg: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        marginRight: 8
+    },
+    avatarName: {
+        fontSize: 13,
+        color: '#374151'
+    },
+    avatarNameActive: {
+        color: '#1E40AF',
+        fontWeight: '600'
+    }
 });

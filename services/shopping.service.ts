@@ -13,6 +13,12 @@ export interface ShoppingItem {
   } | string;
   quantity: number;
   is_bought: boolean;
+  shoppingListId?: string;
+  assignedTo?: {
+    _id: string;
+    fullName?: string;
+    avatarUrl?: string;
+  } | string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -20,17 +26,26 @@ export interface ShoppingItem {
 export interface CreateShoppingItemDTO {
   foodId: string;
   quantity: number;
+  date?: string;
+  assignedTo?: string;
 }
 
 export interface UpdateShoppingItemDTO {
   itemId: string;
   newQuantity?: number;
+  assignedTo?: string;
   isBought?: boolean;
 }
 
 export interface MarkAsBoughtDTO {
   itemId: string;
   isBought: boolean;
+}
+
+export interface ShoppingList {
+  _id: string;
+  date: string;
+  status: string;
 }
 
 class ShoppingService {
@@ -47,11 +62,24 @@ class ShoppingService {
   /**
    * Lấy danh sách mua sắm
    */
-  async getShoppingItems(): Promise<ShoppingItem[]> {
+  async getShoppingItems(date?: string): Promise<ShoppingItem[]> {
     try {
-      const response = await api.get('/shopping');
+      const url = date ? `/shopping?date=${date}` : '/shopping';
+      const response = await api.get(url);
       const items = response.data.data || response.data;
       return Array.isArray(items) ? items.map((item: any) => this.normalizeItem(item)) : [];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách các ngày đi chợ
+   */
+  async getShoppingLists(): Promise<ShoppingList[]> {
+    try {
+      const response = await api.get('/shopping/lists');
+      return response.data;
     } catch (error) {
       throw error;
     }
@@ -82,11 +110,12 @@ class ShoppingService {
   }
 
   /**
-   * Cập nhật số lượng
+   * Cập nhật số lượng và người được giao
    */
-  async updateItemQuantity(data: {
+  async updateItem(data: {
     itemId: string;
-    newQuantity: number;
+    newQuantity?: number;
+    assignedTo?: string;
   }): Promise<ShoppingItem> {
     try {
       const response = await api.put('/shopping', data);
@@ -94,6 +123,13 @@ class ShoppingService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Alias for backward compatibility if needed, but updated logic
+   */
+  async updateItemQuantity(data: { itemId: string; newQuantity: number; }): Promise<ShoppingItem> {
+    return this.updateItem(data);
   }
 
   /**

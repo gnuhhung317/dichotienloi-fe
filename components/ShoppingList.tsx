@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { shoppingService, ShoppingItem } from '../services/shopping.service';
+import { shoppingService, ShoppingItem, ShoppingList as ShoppingListType } from '../services/shopping.service';
+import { groupService, GroupMember } from '../services/group.service';
 import { AddToShoppingListModal } from './AddToShoppingListModal';
 import { EditShoppingItemModal } from './EditShoppingItemModal';
 import { API_CONFIG } from '../config/app.config';
@@ -11,24 +12,46 @@ import { useGroup } from '../context/GroupContext';
 export function ShoppingList() {
   const { hasGroup } = useGroup();
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
 
-  // Load shopping list on mount
+  // Date Management
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Load initial data
   useEffect(() => {
     if (hasGroup) {
-      loadShoppingItems();
+      loadGroupMembers();
+      loadShoppingItems(selectedDate);
     } else {
       setIsLoading(false);
     }
   }, [hasGroup]);
 
-  const loadShoppingItems = async () => {
+  // Reload items when date changes
+  useEffect(() => {
+    if (hasGroup) {
+      loadShoppingItems(selectedDate);
+    }
+  }, [selectedDate]);
+
+  const loadGroupMembers = async () => {
+    try {
+      const storedMembers = await groupService.getMyGroupMembers();
+      setGroupMembers(storedMembers.members);
+    } catch (error) {
+      console.error('Load members error:', error);
+    }
+  };
+
+  const loadShoppingItems = async (date: Date) => {
     try {
       setIsLoading(true);
-      const shoppingItems = await shoppingService.getShoppingItems();
+      const dateStr = date.toISOString(); // Send ISO string, backend handles parsing
+      const shoppingItems = await shoppingService.getShoppingItems(dateStr);
       setItems(shoppingItems);
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tải danh sách mua sắm');
@@ -39,9 +62,12 @@ export function ShoppingList() {
   };
 
 
-  const handleAddItem = async (data: { foodId: string; quantity: number }) => {
+  const handleAddItem = async (data: { foodId: string; quantity: number, assignedTo?: string }) => {
     try {
-      const newItem = await shoppingService.addItemToShoppingList(data);
+      const newItem = await shoppingService.addItemToShoppingList({
+        ...data,
+        date: selectedDate.toISOString()
+      });
       setItems([...items, newItem]);
       Alert.alert('Thành công', 'Đã thêm vào danh sách mua');
       setShowAddModal(false);
@@ -51,11 +77,11 @@ export function ShoppingList() {
     }
   };
 
-  const handleUpdateItem = async (itemId: string, newQuantity: number) => {
+  const handleUpdateItem = async (itemId: string, newQuantity: number, assignedTo?: string) => {
     try {
-      const updatedItem = await shoppingService.updateItemQuantity({ itemId, newQuantity });
+      const updatedItem = await shoppingService.updateItem({ itemId, newQuantity, assignedTo });
       setItems(items.map(item => item._id === itemId ? updatedItem : item));
-      Alert.alert('Thành công', 'Đã cập nhật số lượng');
+      Alert.alert('Thành công', 'Đã cập nhật sản phẩm');
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật sản phẩm');
       console.error('Update item error:', error);
@@ -99,6 +125,25 @@ export function ShoppingList() {
     ]);
   };
 
+  // Date Navigation Helpers
+  const changeDate = (days: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    setSelectedDate(newDate);
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+  };
+
+  const formatDate = (date: Date) => {
+    if (isToday(date)) return 'Hôm nay';
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+  };
+
   // Calculate stats
   const boughtItems = items.filter(item => item.is_bought);
   const unboughtItems = items.filter(item => !item.is_bought);
@@ -113,16 +158,6 @@ export function ShoppingList() {
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="basket-outline" size={48} color="#D1D5DB" />
-        <Text style={styles.emptyText}>Danh sách mua trống</Text>
-        <Text style={styles.emptySubText}>Nhấn + để thêm sản phẩm</Text>
-      </View>
-    );
-  }
-
   if (!hasGroup) {
     return (
       <View style={styles.emptyContainer}>
@@ -133,116 +168,150 @@ export function ShoppingList() {
     );
   }
 
+  const renderItem = (item: ShoppingItem, isDone: boolean) => {
+    // Resolve Assigned User
+    let assignedUser = null;
+    if (item.assignedTo) {
+      if (typeof item.assignedTo === 'object') {
+        assignedUser = item.assignedTo;
+      } else {
+        // Try to find in groupMembers if we only have ID (fallback)
+        const member = groupMembers.find(m => m.userId === item.assignedTo);
+        if (member && member.user) {
+          assignedUser = member.user;
+        }
+      }
+    }
+
+    return (
+      <View key={item._id} style={[styles.itemRow, isDone && styles.itemRowDone]}>
+        <TouchableOpacity
+          style={styles.checkBox}
+          onPress={() => handleMarkAsBought(item._id, item.is_bought)}
+        >
+          <View style={item.is_bought ? styles.checkBoxChecked : {}}>
+            {item.is_bought && (
+              <Ionicons name="checkmark" size={16} color="#10B981" />
+            )}
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.itemInfo}
+          onPress={() => openEditModal(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.itemMainRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={isDone ? styles.itemNameChecked : styles.itemNameDone}>
+                {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
+              </Text>
+              <Text style={styles.itemQuantity}>
+                {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
+              </Text>
+            </View>
+            {typeof item.foodId === 'object' && item.foodId.image && (
+              <Image
+                source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
+                style={styles.itemImage}
+              />
+            )}
+          </View>
+
+          {/* Assigned User Chip */}
+          {assignedUser && (
+            <View style={styles.assignedChip}>
+              {assignedUser.avatarUrl ? (
+                <Image
+                  source={{ uri: `${API_CONFIG.UPLOADS_URL}/${assignedUser.avatarUrl}` }}
+                  style={styles.assignedAvatar}
+                />
+              ) : (
+                <View style={styles.assignedAvatarPlaceholder}>
+                  <Text style={styles.assignedInitials}>
+                    {assignedUser.fullName ? assignedUser.fullName.charAt(0).toUpperCase() : '?'}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.assignedName}>
+                {assignedUser.fullName || 'Unknown'}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => handleDeleteItem(item._id)}
+        >
+          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Progress Header */}
-      <View style={styles.progressHeader}>
-        <View style={styles.progressTitleRow}>
-          <Text style={styles.progressTitle}>Danh sách mua sắm</Text>
-          <Text style={styles.progressCount}>
-            {boughtItems.length}/{items.length}
-          </Text>
+      {/* Date Navigation Header */}
+      <View style={styles.dateHeader}>
+        <TouchableOpacity onPress={() => changeDate(-1)} style={styles.navBtn}>
+          <Ionicons name="chevron-back" size={24} color="#4B5563" />
+        </TouchableOpacity>
+        <View style={styles.dateDisplay}>
+          <Ionicons name="calendar-outline" size={18} color="#10B981" style={{ marginRight: 8 }} />
+          <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
         </View>
-        <View style={styles.progressBarContainer}>
-          <View
-            style={[
-              styles.progressBarFill,
-              { width: `${progress}%` },
-            ]}
-          />
-        </View>
+        <TouchableOpacity onPress={() => changeDate(1)} style={styles.navBtn}>
+          <Ionicons name="chevron-forward" size={24} color="#4B5563" />
+        </TouchableOpacity>
       </View>
+
+      {/* Progress Header */}
+      {items.length > 0 && (
+        <View style={styles.progressHeader}>
+          <View style={styles.progressTitleRow}>
+            <Text style={styles.progressTitle}>Danh sách mua sắm</Text>
+            <Text style={styles.progressCount}>
+              {boughtItems.length}/{items.length}
+            </Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${progress}%` },
+              ]}
+            />
+          </View>
+        </View>
+      )}
 
       <ScrollView style={styles.listContent}>
         <View style={styles.itemsContainer}>
-          {/* Chưa mua */}
-          {unboughtItems.length > 0 && (
+          {items.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="basket-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>Danh sách trống</Text>
+              <Text style={styles.emptySubText}>Chọn ngày khác hoặc thêm món mới</Text>
+            </View>
+          ) : (
             <>
-              <Text style={styles.sectionTitle}>Chưa mua ({unboughtItems.length})</Text>
-              {unboughtItems.map((item) => (
-                <View key={item._id} style={styles.itemRow}>
-                  <TouchableOpacity
-                    style={styles.checkBox}
-                    onPress={() => handleMarkAsBought(item._id, item.is_bought)}
-                  >
-                    <View style={item.is_bought ? styles.checkBoxChecked : {}}>
-                      {item.is_bought && (
-                        <Ionicons name="checkmark" size={16} color="#10B981" />
-                      )}
-                    </View>
-                  </TouchableOpacity>
+              {/* Chưa mua */}
+              {unboughtItems.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Chưa mua ({unboughtItems.length})</Text>
+                  {unboughtItems.map((item) => renderItem(item, false))}
+                </>
+              )}
 
-                  <TouchableOpacity
-                    style={styles.itemInfo}
-                    onPress={() => openEditModal(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.itemNameDone}>
-                      {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
-                    </Text>
-                    {typeof item.foodId === 'object' && item.foodId.image && (
-                      <Image
-                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
-                        style={styles.itemImage}
-                      />
-                    )}
-                    <Text style={styles.itemQuantity}>
-                      {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => handleDeleteItem(item._id)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </>
-          )}
-
-          {/* Đã mua */}
-          {boughtItems.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
-                Đã mua ({boughtItems.length})
-              </Text>
-              {boughtItems.map((item) => (
-                <View key={item._id} style={[styles.itemRow, styles.itemRowDone]}>
-                  <TouchableOpacity
-                    style={styles.checkBox}
-                    onPress={() => handleMarkAsBought(item._id, item.is_bought)}
-                  >
-                    <View style={styles.checkBoxChecked}>
-                      <Ionicons name="checkmark" size={16} color="#10B981" />
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.itemInfo}
-                    onPress={() => openEditModal(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.itemNameChecked}>
-                      {typeof item.foodId === 'object' ? item.foodId.name : 'Loading...'}
-                    </Text>
-                    {typeof item.foodId === 'object' && item.foodId.image && (
-                      <Image
-                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
-                        style={styles.itemImage}
-                      />
-                    )}
-                    <Text style={styles.itemQuantity}>
-                      {item.quantity} {typeof item.foodId === 'object' && typeof item.foodId.unitId === 'object' ? item.foodId.unitId.name : ''}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => handleDeleteItem(item._id)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {/* Đã mua */}
+              {boughtItems.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
+                    Đã mua ({boughtItems.length})
+                  </Text>
+                  {boughtItems.map((item) => renderItem(item, true))}
+                </>
+              )}
             </>
           )}
         </View>
@@ -263,6 +332,7 @@ export function ShoppingList() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddItem}
+        groupMembers={groupMembers}
       />
 
       <EditShoppingItemModal
@@ -270,6 +340,7 @@ export function ShoppingList() {
         onClose={() => setShowEditModal(false)}
         onSubmit={handleUpdateItem}
         item={editingItem}
+        groupMembers={groupMembers}
       />
     </View >
   );
@@ -279,6 +350,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  dateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    zIndex: 10,
+  },
+  navBtn: {
+    padding: 8,
+  },
+  dateDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
   },
   progressHeader: {
     padding: 16,
@@ -318,6 +421,7 @@ const styles = StyleSheet.create({
   itemsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+    paddingBottom: 80,
   },
   sectionTitle: {
     fontSize: 14,
@@ -328,7 +432,7 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start', // Align start to handle varying heights
     paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 8,
@@ -353,6 +457,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    marginTop: 4, // Align with text
   },
   checkBoxChecked: {
     borderColor: '#10B981',
@@ -361,17 +466,21 @@ const styles = StyleSheet.create({
   itemInfo: {
     flex: 1,
   },
+  itemMainRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   itemNameDone: {
     fontSize: 14,
     fontWeight: '500',
     color: '#111827',
-    textDecorationLine: 'none',
   },
   itemImage: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    marginTop: 4,
+    marginLeft: 8,
   },
   itemNameChecked: {
     color: '#9CA3AF',
@@ -387,6 +496,7 @@ const styles = StyleSheet.create({
   deleteBtn: {
     padding: 8,
     marginLeft: 8,
+    marginTop: 0,
   },
   loadingContainer: {
     flex: 1,
@@ -399,12 +509,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
     textAlign: 'center',
     marginBottom: 8,
+    marginTop: 16
   },
   emptySubText: {
     fontSize: 14,
@@ -427,4 +543,39 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
   },
+  assignedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    alignSelf: 'flex-start',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 8,
+  },
+  assignedAvatar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 4,
+  },
+  assignedAvatarPlaceholder: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#DBEAFE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  assignedInitials: {
+    fontSize: 10,
+    color: '#1E40AF',
+    fontWeight: 'bold',
+  },
+  assignedName: {
+    fontSize: 11,
+    color: '#4B5563',
+  }
+
 });
