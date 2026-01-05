@@ -13,6 +13,7 @@ interface CreateCustomItemModalProps {
 }
 
 export function CreateCustomItemModal({ isOpen, onClose, onSuccess }: CreateCustomItemModalProps) {
+  const { t } = useTranslation();
   const [selectedIcon, setSelectedIcon] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [defaultExpiry, setDefaultExpiry] = useState(3);

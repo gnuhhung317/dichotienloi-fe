@@ -14,6 +14,7 @@ interface BarcodeScannerModalProps {
 type ScanState = 'scanning' | 'found' | 'notfound';
 
 export function BarcodeScannerModal({ isOpen, onClose, onSuccess }: BarcodeScannerModalProps) {
+  const { t } = useTranslation();
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [flashOn, setFlashOn] = useState(false);
   const [showManualInput, setShowManualInput] = useState(false);

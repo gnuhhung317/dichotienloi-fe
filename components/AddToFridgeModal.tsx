@@ -12,6 +12,7 @@ interface AddToFridgeModalProps {
 }
 
 export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModalProps) {
+  const { t } = useTranslation();
   const [quantity, setQuantity] = useState('1');
   const [selectedUnit, setSelectedUnit] = useState('kg');
   const [selectedQuickDate, setSelectedQuickDate] = useState('3days');
