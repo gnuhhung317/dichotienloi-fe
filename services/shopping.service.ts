@@ -16,7 +16,7 @@ export interface ShoppingItem {
   shoppingListId?: string;
   assignedTo?: {
     _id: string;
-    fullName?: string;
+    name?: string;
     avatarUrl?: string;
   } | string;
   createdAt?: string;

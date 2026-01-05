@@ -293,7 +293,7 @@ export function Profile({ onLogout }: ProfileProps) {
         {/* App Info */}
         <View style={styles.appInfo}>
           <Text style={styles.appInfoText}>Đi Chợ Tiện Lợi v1.0.0</Text>
-          <Text style={styles.appInfoText}>© 2025 Smart Grocery Manager</Text>
+          <Text style={styles.appInfoText}>© 2026 Smart Grocery Manager</Text>
         </View>
 
         {/* Logout Button */}

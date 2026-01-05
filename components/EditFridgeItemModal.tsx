@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { FridgeItem, fridgeService } from '../services/fridge.service';
+import { foodService } from '../services/food.service';
 import { API_CONFIG } from '../config/app.config';
 
 interface EditFridgeItemModalProps {
@@ -19,6 +21,7 @@ export function EditFridgeItemModal({
 }: EditFridgeItemModalProps) {
     const [quantity, setQuantity] = useState('1');
     const [expiryDate, setExpiryDate] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -33,8 +36,26 @@ export function EditFridgeItemModal({
             } else {
                 setExpiryDate('');
             }
+            if (typeof item.foodId === 'object' && item.foodId.image) {
+                setSelectedImage(item.foodId.image.startsWith('http') ? item.foodId.image : `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}`);
+            } else {
+                setSelectedImage(null);
+            }
         }
     }, [isOpen, item]);
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+        });
+
+        if (!result.canceled) {
+            setSelectedImage(result.assets[0].uri);
+        }
+    };
 
     const handleQuantityChange = (delta: number) => {
         const current = parseFloat(quantity) || 0;
@@ -71,13 +92,20 @@ export function EditFridgeItemModal({
 
         try {
             setIsSubmitting(true);
+
+            // Handle image update if changed
+            if (item && selectedImage && !selectedImage.startsWith('http')) {
+                const foodId = typeof item.foodId === 'object' ? (item.foodId as any)._id : item.foodId;
+                await foodService.updateFoodImage(foodId, selectedImage);
+            }
+
             await onSubmit(item._id, {
                 quantity: val,
                 expiredAt: finalDate
             });
             onClose();
         } catch (error) {
-            // Error handled in parent
+            Alert.alert('Lỗi', 'Có lỗi xảy ra khi cập nhật');
         } finally {
             setIsSubmitting(false);
         }
@@ -104,13 +132,15 @@ export function EditFridgeItemModal({
 
                     <View style={styles.content}>
                         <View style={styles.itemInfo}>
-                            {imageUrl ? (
-                                <Image source={{ uri: imageUrl }} style={styles.itemImage} />
-                            ) : (
-                                <View style={styles.placeholderImage}>
-                                    <Ionicons name="cube-outline" size={32} color="#9CA3AF" />
-                                </View>
-                            )}
+                            <TouchableOpacity onPress={pickImage}>
+                                {selectedImage ? (
+                                    <Image source={{ uri: selectedImage }} style={styles.itemImage} />
+                                ) : (
+                                    <View style={styles.placeholderImage}>
+                                        <Ionicons name="camera-outline" size={32} color="#9CA3AF" />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.itemName}>{foodName}</Text>
                                 <Text style={styles.itemUnit}>

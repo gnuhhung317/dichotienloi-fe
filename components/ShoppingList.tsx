@@ -176,7 +176,7 @@ export function ShoppingList() {
       if (typeof item.assignedTo === 'object') {
         displayUser = {
           _id: item.assignedTo._id,
-          displayName: item.assignedTo.fullName || 'Unknown',
+          displayName: item.assignedTo.name || 'Unknown',
           avatarUrl: item.assignedTo.avatarUrl
         };
       } else {

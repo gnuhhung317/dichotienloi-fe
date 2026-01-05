@@ -139,13 +139,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    zIndex: 1000,
   },
   modal: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '80%', // Taller modal
-    flex: 0,
+    width: '100%',
   },
   header: {
     flexDirection: 'row',

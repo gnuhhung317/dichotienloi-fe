@@ -48,6 +48,7 @@ export function RecipeDetailModal({
                         <Image
                             source={{ uri: recipe.image.startsWith('http') ? recipe.image : `${API_CONFIG.UPLOADS_URL}/${recipe.image}` }}
                             style={styles.image}
+                            resizeMode="cover"
                         />
                     ) : (
                         <View style={styles.placeholderImage}>
@@ -62,16 +63,7 @@ export function RecipeDetailModal({
                 <ScrollView style={styles.content}>
                     <View style={styles.header}>
                         <Text style={styles.title}>{recipe.name}</Text>
-                        <View style={styles.metaRow}>
-                            <View style={styles.metaItem}>
-                                <Ionicons name="time-outline" size={16} color="#6B7280" />
-                                <Text style={styles.metaText}>-- phút</Text>
-                            </View>
-                            <View style={styles.metaItem}>
-                                <Ionicons name="people-outline" size={16} color="#6B7280" />
-                                <Text style={styles.metaText}>-- người</Text>
-                            </View>
-                        </View>
+
                     </View>
 
                     <View style={styles.section}>
@@ -122,7 +114,6 @@ const styles = StyleSheet.create({
     image: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
     placeholderImage: {
         width: '100%',

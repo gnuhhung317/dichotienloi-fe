@@ -342,7 +342,11 @@ export function Fridge() {
                   >
                     {typeof item.foodId === 'object' && item.foodId.image ? (
                       <Image
-                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
+                        source={{
+                          uri: item.foodId.image.startsWith('http')
+                            ? item.foodId.image
+                            : `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}`
+                        }}
                         style={styles.gridItemImage}
                       />
                     ) : (
@@ -399,7 +403,11 @@ export function Fridge() {
                   >
                     {typeof item.foodId === 'object' && item.foodId.image ? (
                       <Image
-                        source={{ uri: `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}` }}
+                        source={{
+                          uri: item.foodId.image.startsWith('http')
+                            ? item.foodId.image
+                            : `${API_CONFIG.UPLOADS_URL}/${item.foodId.image}`
+                        }}
                         style={styles.gridItemImage}
                       />
                     ) : (

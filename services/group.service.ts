@@ -57,8 +57,9 @@ class GroupService {
       ...member,
       _id: member._id ? member._id.toString() : member._id,
       userId: member.userId && typeof member.userId === 'object' && member.userId._id
-        ? member.userId._id.toString() // Handle populated user object if needed, though interface says string
-        : (member.userId ? member.userId.toString() : member.userId)
+        ? member.userId._id.toString()
+        : (member.userId ? member.userId.toString() : member.userId),
+      user: member.userId && typeof member.userId === 'object' ? member.userId : member.user
     };
   }
 

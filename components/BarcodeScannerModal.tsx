@@ -242,7 +242,7 @@ export function BarcodeScannerModal({ isOpen, onClose, onSuccess }: BarcodeScann
 
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>{selectedProduct?.name}</Text>
-                <Text style={styles.productDetail}>Đơn vị: {selectedProduct?.unitId?.name || 'Cái'}</Text>
+                <Text style={styles.productDetail}>Đơn vị: {selectedProduct?.unit || 'Cái'}</Text>
               </View>
 
               <View style={styles.expirySection}>

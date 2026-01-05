@@ -1,4 +1,8 @@
+import { Platform } from 'react-native';
 import api from '../lib/api';
+import { API_CONFIG } from '../config/app.config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export interface Food {
   _id: string;
@@ -62,6 +66,58 @@ class FoodService {
     }
   }
 
+  async uploadImage(imageUri: string): Promise<string> {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+
+      if (Platform.OS === 'web') {
+        // Web implementation
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+
+        const formData = new FormData();
+        formData.append('file', blob, 'photo.jpg');
+
+        const uploadResponse = await fetch(`${API_CONFIG.BASE_URL}/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        const responseData = await uploadResponse.json();
+
+        if (!uploadResponse.ok) {
+          throw new Error(responseData.message || 'Upload failed');
+        }
+
+        return responseData.url;
+      } else {
+        // Native implementation
+        const response = await FileSystem.uploadAsync(`${API_CONFIG.BASE_URL}/upload`, imageUri, {
+          fieldName: 'file',
+          httpMethod: 'POST',
+          uploadType: 1, // FileSystem.FileSystemUploadType.MULTIPART (1)
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const responseData = JSON.parse(response.body);
+
+        if (response.status !== 200) {
+          throw new Error(responseData.message || 'Upload failed');
+        }
+
+        return responseData.url;
+      }
+    } catch (error) {
+      console.error('Upload image error:', error);
+      throw error;
+    }
+  }
+
   /**
    * Tạo thực phẩm mới
    */
@@ -72,34 +128,14 @@ class FoodService {
     image?: string;
   }): Promise<Food> {
     try {
-      if (data.image) {
-        const formData = new FormData();
-        formData.append('name', data.name);
-        formData.append('foodCategoryName', data.foodCategoryName);
-        formData.append('unitName', data.unitName);
+      let imageUrl = data.image;
 
-        // Get filename and type from URI
-        const filename = data.image.split('/').pop() || 'photo.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
-
-        // Fetch the image and convert to blob
-        const response = await fetch(data.image);
-        const blob = await response.blob();
-
-        // Append blob to formData with proper format
-        formData.append('image', blob, filename);
-
-        const uploadResponse = await api.post('/food', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        return this.normalizeFood(uploadResponse.data.data || uploadResponse.data);
-      } else {
-        const response = await api.post('/food', data);
-        return this.normalizeFood(response.data.data || response.data);
+      if (data.image && !data.image.startsWith('http')) {
+        imageUrl = await this.uploadImage(data.image);
       }
+
+      const response = await api.post('/food', { ...data, image: imageUrl });
+      return this.normalizeFood(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
@@ -115,34 +151,14 @@ class FoodService {
     image?: string;
   }): Promise<Food> {
     try {
-      if (data.image) {
-        const formData = new FormData();
-        formData.append('name', data.name);
-        formData.append('newCategory', data.newCategory);
-        formData.append('newUnit', data.newUnit);
+      let imageUrl = data.image;
 
-        // Get filename and type from URI
-        const filename = data.image.split('/').pop() || 'photo.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
-
-        // Fetch the image and convert to blob
-        const response = await fetch(data.image);
-        const blob = await response.blob();
-
-        // Append blob to formData
-        formData.append('image', blob, filename);
-
-        const uploadResponse = await api.put('/food', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        return this.normalizeFood(uploadResponse.data.data || uploadResponse.data);
-      } else {
-        const response = await api.put('/food', data);
-        return this.normalizeFood(response.data.data || response.data);
+      if (data.image && !data.image.startsWith('http')) {
+        imageUrl = await this.uploadImage(data.image);
       }
+
+      const response = await api.put('/food', { ...data, image: imageUrl });
+      return this.normalizeFood(response.data.data || response.data);
     } catch (error) {
       throw error;
     }
@@ -251,6 +267,24 @@ class FoodService {
     } catch (error) {
       console.error('Get food by name error:', error);
       return null;
+    }
+  }
+
+  /**
+   * Cập nhật ảnh thực phẩm
+   */
+  async updateFoodImage(foodId: string, imageUri: string): Promise<Food> {
+    try {
+      let imageUrl = imageUri;
+
+      if (imageUri && !imageUri.startsWith('http')) {
+        imageUrl = await this.uploadImage(imageUri);
+      }
+
+      const response = await api.patch(`/food/${foodId}/image`, { image: imageUrl });
+      return this.normalizeFood(response.data.data || response.data);
+    } catch (error) {
+      throw error;
     }
   }
 }

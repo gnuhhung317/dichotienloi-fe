@@ -15,22 +15,18 @@ import { AdminDashboard } from '@/components/AdminDashboard';
 import { useAuth } from '@/context/AuthContext';
 
 export default function HomeScreen() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   const { group } = useGroup();
-  const { user, logout } = useAuth(); // Get user to check role
 
   if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
+    return <Login />; // Login handles context login internally, no need for prop
   }
 
   // If user is admin, show AdminDashboard
   if (user?.role === 'admin') {
-    return <AdminDashboard onLogout={() => {
-      logout();
-      setIsAuthenticated(false);
-    }} />;
+    return <AdminDashboard onLogout={logout} />;
   }
 
   const renderScreen = () => {
@@ -44,10 +40,7 @@ export default function HomeScreen() {
       case 'meals':
         return <MealPlanner />;
       case 'profile':
-        return <Profile onLogout={() => {
-          logout();
-          setIsAuthenticated(false);
-        }} />;
+        return <Profile onLogout={() => { }} />; // Profile handles logout internally, this is optional
       default:
         return <Home onNavigate={setActiveTab} />;
     }
