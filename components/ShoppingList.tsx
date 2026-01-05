@@ -170,15 +170,24 @@ export function ShoppingList() {
 
   const renderItem = (item: ShoppingItem, isDone: boolean) => {
     // Resolve Assigned User
-    let assignedUser = null;
+    let displayUser: { _id: string; displayName: string; avatarUrl?: string } | null = null;
+
     if (item.assignedTo) {
       if (typeof item.assignedTo === 'object') {
-        assignedUser = item.assignedTo;
+        displayUser = {
+          _id: item.assignedTo._id,
+          displayName: item.assignedTo.fullName || 'Unknown',
+          avatarUrl: item.assignedTo.avatarUrl
+        };
       } else {
         // Try to find in groupMembers if we only have ID (fallback)
         const member = groupMembers.find(m => m.userId === item.assignedTo);
         if (member && member.user) {
-          assignedUser = member.user;
+          displayUser = {
+            _id: member.user._id,
+            displayName: member.user.name,
+            avatarUrl: member.user.avatarUrl
+          };
         }
       }
     }
@@ -219,22 +228,22 @@ export function ShoppingList() {
           </View>
 
           {/* Assigned User Chip */}
-          {assignedUser && (
+          {displayUser && (
             <View style={styles.assignedChip}>
-              {assignedUser.avatarUrl ? (
+              {displayUser.avatarUrl ? (
                 <Image
-                  source={{ uri: `${API_CONFIG.UPLOADS_URL}/${assignedUser.avatarUrl}` }}
+                  source={{ uri: `${API_CONFIG.UPLOADS_URL}/${displayUser.avatarUrl}` }}
                   style={styles.assignedAvatar}
                 />
               ) : (
                 <View style={styles.assignedAvatarPlaceholder}>
                   <Text style={styles.assignedInitials}>
-                    {assignedUser.fullName ? assignedUser.fullName.charAt(0).toUpperCase() : '?'}
+                    {displayUser.displayName ? displayUser.displayName.charAt(0).toUpperCase() : '?'}
                   </Text>
                 </View>
               )}
               <Text style={styles.assignedName}>
-                {assignedUser.fullName || 'Unknown'}
+                {displayUser.displayName}
               </Text>
             </View>
           )}

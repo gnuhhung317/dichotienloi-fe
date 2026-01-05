@@ -7,6 +7,7 @@ import { AddToShoppingListModal } from './AddToShoppingListModal';
 import { EditFridgeItemModal } from './EditFridgeItemModal';
 import { foodService } from '../services/food.service';
 import { shoppingService } from '../services/shopping.service';
+import groupService, { GroupMember } from '../services/group.service';
 import { useGroup } from '../context/GroupContext';
 import { API_CONFIG } from '../config/app.config';
 
@@ -27,6 +28,7 @@ export function Fridge() {
     { id: 'all', label: 'Tất cả', icon: '🏪' }
   ]);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
 
   // Load data when component mount
   useEffect(() => {
@@ -42,7 +44,8 @@ export function Fridge() {
       setIsLoading(true);
       await Promise.all([
         loadFridgeItems(),
-        loadCategories()
+        loadCategories(),
+        loadGroupMembers()
       ]);
     } catch (error) {
       console.error('Initial load error:', error);
@@ -76,6 +79,15 @@ export function Fridge() {
     if (lower.includes('đồ uống')) return '🥤';
     if (lower.includes('bánh')) return '🍪';
     return '📦';
+  };
+
+  const loadGroupMembers = async () => {
+    try {
+      const storedMembers = await groupService.getMyGroupMembers();
+      setGroupMembers(storedMembers.members);
+    } catch (error) {
+      console.error('Load members error:', error);
+    }
   };
 
   const loadFridgeItems = async () => {
@@ -463,6 +475,7 @@ export function Fridge() {
         isOpen={showShoppingListModal}
         onClose={() => setShowShoppingListModal(false)}
         onSubmit={handleAddToShoppingList}
+        groupMembers={groupMembers}
       />
 
       <EditFridgeItemModal

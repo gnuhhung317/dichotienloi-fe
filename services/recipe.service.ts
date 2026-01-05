@@ -66,7 +66,7 @@ class RecipeService {
             // Fetch the image and convert to blob
             const response = await fetch(data.image);
             const blob = await response.blob();
-            
+
             // Append blob to formData
             formData.append('image', blob, filename);
 
@@ -109,7 +109,7 @@ class RecipeService {
             // Fetch the image and convert to blob
             const response = await fetch(data.image);
             const blob = await response.blob();
-            
+
             // Append blob to formData
             formData.append('image', blob, filename);
 
@@ -123,6 +123,11 @@ class RecipeService {
             const response = await api.put('/recipe', { ...data, recipeId });
             return response.data;
         }
+    }
+
+    async suggestRecipes(): Promise<(Recipe & { matchCount: number; totalIngredients: number; matchPercentage: number; missingIngredients: any[] })[]> {
+        const response = await api.get('/recipe/suggest');
+        return response.data;
     }
 }
 

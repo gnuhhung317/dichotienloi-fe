@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AddMealModal } from './AddMealModal';
 import { CookbookView } from './CookbookView';
 import { AddRecipeModal } from './AddRecipeModal';
+import { SuggestionView } from './SuggestionView';
 import { mealService, MealPlanItem } from '../services/meal.service';
 import { Recipe } from '../services/recipe.service';
 
@@ -17,7 +18,7 @@ export function MealPlanner() {
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<{ date: Date; mealType: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'plan' | 'cookbook'>('plan');
+  const [activeTab, setActiveTab] = useState<'plan' | 'cookbook' | 'suggest'>('plan');
 
   const [weeklyPlan, setWeeklyPlan] = useState<MealPlanItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +38,12 @@ export function MealPlanner() {
       loadWeeklyPlan();
     }
   }, [currentWeek, activeTab, hasGroup]);
+
+  // ... (rest of methods)
+
+  // In render:
+  // ... split implementation to next Replace call for cleaner diff
+
 
   const getWeekRange = () => {
     const today = new Date();
@@ -162,6 +169,13 @@ export function MealPlanner() {
               <Ionicons name="book-outline" size={16} color={activeTab === 'cookbook' ? '#16A34A' : '#6B7280'} />
               <Text style={[styles.segmentText, activeTab === 'cookbook' && styles.segmentTextActive]}>Sổ tay</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setActiveTab('suggest')}
+              style={[styles.segment, activeTab === 'suggest' && styles.segmentActive]}
+            >
+              <Ionicons name="bulb-outline" size={16} color={activeTab === 'suggest' ? '#16A34A' : '#6B7280'} />
+              <Text style={[styles.segmentText, activeTab === 'suggest' && styles.segmentTextActive]}>Gợi ý</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -257,7 +271,7 @@ export function MealPlanner() {
             </ScrollView>
           </>
         )
-      ) : (
+      ) : activeTab === 'cookbook' ? (
         <CookbookView
           key={refreshCookbook} // Force remount to refresh
           onAddRecipe={() => {
@@ -269,6 +283,12 @@ export function MealPlanner() {
             setShowAddRecipeModal(true);
           }}
         />
+      ) : (
+        <SuggestionView onAddSuccess={() => {
+          // Maybe switch to Plan tab?
+          // setActiveTab('plan');
+          loadWeeklyPlan(); // Refresh logic
+        }} />
       )}
 
       {/* Add Meal Modal Wrapper - Using existing component but needs logic update or separate component */}
@@ -537,5 +557,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '400',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
