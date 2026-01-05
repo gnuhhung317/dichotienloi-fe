@@ -77,6 +77,9 @@ class FoodService {
         } as any);
 
         const response = await api.post('/food', formData, {
+          headers: {
+            'Content-Type': null as any, // Unset default application/json
+          },
           transformRequest: (data, headers) => {
             return formData; // Avoid axios messing with it
           },
@@ -118,6 +121,9 @@ class FoodService {
         } as any);
 
         const response = await api.put('/food', formData, {
+          headers: {
+            'Content-Type': null as any,
+          },
           transformRequest: (data, headers) => {
             return formData; // Avoid axios messing with it
           },

@@ -69,6 +69,9 @@ class RecipeService {
             } as any);
 
             const response = await api.post('/recipe', formData, {
+                headers: {
+                    'Content-Type': null as any,
+                },
                 transformRequest: (data, headers) => {
                     return formData;
                 },
@@ -110,6 +113,9 @@ class RecipeService {
             } as any);
 
             const response = await api.put('/recipe', formData, {
+                headers: {
+                    'Content-Type': null as any,
+                },
                 transformRequest: (data, headers) => {
                     return formData;
                 },
