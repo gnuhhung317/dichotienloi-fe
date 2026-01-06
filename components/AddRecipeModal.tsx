@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { recipeService, Recipe } from '../services/recipe.service';
 import { foodService } from '../services/food.service';
 import { API_CONFIG } from '../config/app.config';
@@ -14,6 +15,7 @@ interface AddRecipeModalProps {
 }
 
 export function AddRecipeModal({ isOpen, onClose, onSuccess, initialData }: AddRecipeModalProps) {
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [ingredients, setIngredients] = useState<{ foodId: string; foodName: string; quantity: string; unitId: string; unitName: string }[]>([]);
@@ -31,6 +33,7 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess, initialData }: AddR
     const [isCreatingNew, setIsCreatingNew] = useState(false);
     const [newCategory, setNewCategory] = useState('');
     const [newUnit, setNewUnit] = useState('');
+    const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
 
     // Load metadata
     useEffect(() => {
@@ -333,17 +336,45 @@ export function AddRecipeModal({ isOpen, onClose, onSuccess, initialData }: AddR
                                                     </TouchableOpacity>
                                                 ))}
                                             </ScrollView>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                                                {units.map(u => (
-                                                    <TouchableOpacity
-                                                        key={u}
-                                                        style={[styles.chip, newUnit === u && styles.chipActive]}
-                                                        onPress={() => setNewUnit(u)}
-                                                    >
-                                                        <Text style={[styles.chipText, newUnit === u && styles.chipTextActive]}>{u}</Text>
-                                                    </TouchableOpacity>
-                                                ))}
-                                            </ScrollView>
+
+                                            <Text style={[styles.creationLabel, { marginTop: 8 }]}>Đơn vị:</Text>
+                                            <View style={styles.unitPickerContainer}>
+                                                <TextInput
+                                                    style={styles.input}
+                                                    value={newUnit}
+                                                    onChangeText={(text) => {
+                                                        setNewUnit(text);
+                                                        setShowUnitSuggestions(true);
+                                                    }}
+                                                    onFocus={() => setShowUnitSuggestions(true)}
+                                                    placeholder="Nhập hoặc chọn đơn vị"
+                                                />
+                                                {showUnitSuggestions && (
+                                                    <View style={styles.unitSuggestions}>
+                                                        <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+                                                            {units
+                                                                .filter(u => u.toLowerCase().includes(newUnit.toLowerCase()))
+                                                                .map(u => (
+                                                                    <TouchableOpacity
+                                                                        key={u}
+                                                                        style={styles.suggestionItem}
+                                                                        onPress={() => {
+                                                                            setNewUnit(u);
+                                                                            setShowUnitSuggestions(false);
+                                                                        }}
+                                                                    >
+                                                                        <Text style={styles.suggestionText}>{u}</Text>
+                                                                    </TouchableOpacity>
+                                                                ))}
+                                                            {units.filter(u => u.toLowerCase().includes(newUnit.toLowerCase())).length === 0 && (
+                                                                <View style={styles.suggestionItem}>
+                                                                    <Text style={[styles.suggestionText, { color: '#9CA3AF' }]}>Tạo mới "{newUnit}"</Text>
+                                                                </View>
+                                                            )}
+                                                        </ScrollView>
+                                                    </View>
+                                                )}
+                                            </View>
                                         </View>
                                     )}
 
@@ -628,5 +659,38 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#6B7280',
         marginTop: 8,
+    },
+    unitPickerContainer: {
+        position: 'relative',
+        zIndex: 10,
+        marginTop: 8
+    },
+    unitSuggestions: {
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        borderRadius: 8,
+        marginTop: 4,
+        zIndex: 2000,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        maxHeight: 150
+    },
+    suggestionItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    suggestionText: {
+        fontSize: 14,
+        color: '#111827',
     },
 });

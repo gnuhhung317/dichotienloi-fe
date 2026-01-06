@@ -27,7 +27,7 @@ export function Fridge() {
 
   // Categories state
   const [categories, setCategories] = useState<{ id: string; label: string; icon: string }[]>([
-    { id: 'all', label: 'Tất cả', icon: '🏪' }
+    { id: 'all', label: t('fridge.all'), icon: '🏪' }
   ]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
@@ -64,7 +64,7 @@ export function Fridge() {
         label: c.name,
         icon: getCategoryIcon(c.name)
       }));
-      setCategories([{ id: 'all', label: 'Tất cả', icon: '🏪' }, ...mappedCats]);
+      setCategories([{ id: 'all', label: t('fridge.all'), icon: '🏪' }, ...mappedCats]);
     } catch (error) {
       console.error('Load categories error:', error);
     }
@@ -314,13 +314,13 @@ export function Fridge() {
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#16A34A" />
-          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       ) : filteredItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cube-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>Tủ lạnh trống</Text>
-          <Text style={styles.emptyText}>Thêm đồ vào tủ để bắt đầu</Text>
+          <Text style={styles.emptyTitle}>{t('fridge.emptyFridge')}</Text>
+          <Text style={styles.emptyText}>{t('fridge.addFirstItem')}</Text>
         </View>
       ) : (
         <ScrollView

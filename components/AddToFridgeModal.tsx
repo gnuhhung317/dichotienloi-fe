@@ -18,6 +18,7 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
   const [selectedQuickDate, setSelectedQuickDate] = useState('3days');
   const [itemName, setItemName] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showUnitSuggestions, setShowUnitSuggestions] = useState(false); // Added state
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Data State
@@ -291,35 +292,47 @@ export function AddToFridgeModal({ isOpen, onClose, onSubmit }: AddToFridgeModal
                 </View>
 
                 {/* Unit Selection */}
-                <View style={styles.unitPicker}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {isNewItem ? (
-                      units.map((unit) => (
-                        <TouchableOpacity
-                          key={unit}
-                          style={[
-                            styles.unitButton,
-                            selectedUnit === unit && styles.unitButtonActive,
-                          ]}
-                          onPress={() => setSelectedUnit(unit)}
-                          disabled={isSubmitting}
-                        >
-                          <Text
-                            style={[
-                              styles.unitText,
-                              selectedUnit === unit && styles.unitTextActive,
-                            ]}
-                          >
-                            {unit}
-                          </Text>
-                        </TouchableOpacity>
-                      ))
-                    ) : (
-                      <View style={[styles.unitButton, styles.unitButtonActive]}>
-                        <Text style={styles.unitTextActive}>{selectedUnit}</Text>
-                      </View>
-                    )}
-                  </ScrollView>
+                {/* Unit Autocomplete */}
+                <View style={styles.unitPickerContainer}>
+                  <TextInput
+                    style={[styles.unitInput, styles.quantityInput]} // Reusing quantityInput style for border/layout matching
+                    value={selectedUnit}
+                    onChangeText={(text) => {
+                      setSelectedUnit(text);
+                      setShowUnitSuggestions(true);
+                    }}
+                    onFocus={() => setShowUnitSuggestions(true)}
+                    placeholder="Đơn vị"
+                    placeholderTextColor="#9CA3AF"
+                    editable={!isSubmitting}
+                  />
+                  {showUnitSuggestions && (
+                    <View style={styles.unitSuggestions}>
+                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+                        {units
+                          .filter(u => u.toLowerCase().includes(selectedUnit.toLowerCase()))
+                          .map(u => (
+                            <TouchableOpacity
+                              key={u}
+                              style={styles.suggestionItem}
+                              onPress={() => {
+                                setSelectedUnit(u);
+                                setShowUnitSuggestions(false);
+                              }}
+                            >
+                              <Text style={styles.suggestionText}>{u}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        {units.filter(u => u.toLowerCase().includes(selectedUnit.toLowerCase())).length === 0 && (
+                          <View style={styles.suggestionItem}>
+                            <Text style={[styles.suggestionText, { color: '#9CA3AF', fontStyle: 'italic' }]}>
+                              Không tìm thấy
+                            </Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
@@ -578,5 +591,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  unitPickerContainer: {
+    width: 100, // Matched previous width
+    position: 'relative',
+    zIndex: 10,
+  },
+  unitInput: {
+    paddingHorizontal: 8, // Adjust usage of quantityInput
+  },
+  unitSuggestions: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    width: 150, // Wider than input for better reading
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    marginTop: 4,
+    zIndex: 2000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

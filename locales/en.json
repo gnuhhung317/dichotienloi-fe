@@ -24,7 +24,19 @@
     "sortBy": "Sort by",
     "all": "All",
     "suggest": "Suggest",
-    "suggestion": "Suggestion"
+    "suggestion": "Suggestion",
+    "today": "Today",
+    "thisWeek": "This week",
+    "expired": "Expired",
+    "expiringToday": "Expiring today",
+    "appName": "Smart Grocery"
+  },
+  "navigation": {
+    "home": "Home",
+    "fridge": "Fridge",
+    "shopping": "Shopping",
+    "meals": "Meals",
+    "profile": "Profile"
   },
   "auth": {
     "login": "Login",
@@ -156,6 +168,10 @@
   },
   "meal": {
     "title": "Meal Planner",
+    "mealPlan": "Meal Plan",
+    "cookbook": "Cookbook",
+    "mealAndCookbook": "Menu & Cookbook",
+    "deleteMeal": "Delete Meal",
     "addMeal": "Add Meal",
     "editMeal": "Edit Meal",
     "breakfast": "Breakfast",

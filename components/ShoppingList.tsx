@@ -142,7 +142,7 @@ export function ShoppingList() {
   };
 
   const formatDate = (date: Date) => {
-    if (isToday(date)) return 'Hôm nay';
+    if (isToday(date)) return t('common.today');
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
   };
 
@@ -155,7 +155,7 @@ export function ShoppingList() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#10B981" />
-        <Text style={{ marginTop: 8, color: '#6B7280' }}>Đang tải...</Text>
+        <Text style={{ marginTop: 8, color: '#6B7280' }}>{t('common.loading')}</Text>
       </View>
     );
   }

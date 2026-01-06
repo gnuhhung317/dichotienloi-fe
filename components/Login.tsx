@@ -44,7 +44,7 @@ export function Login({ onLogin }: LoginProps) {
         await login(email, password);
         Alert.alert(t('common.success'), t('auth.loginSuccess'));
       }
-      
+
       // Gọi callback nếu có
       onLogin?.();
     } catch (error: any) {
@@ -62,7 +62,7 @@ export function Login({ onLogin }: LoginProps) {
           <View style={styles.logo}>
             <Text style={styles.logoEmoji}>🛒</Text>
           </View>
-          <Text style={styles.title}>Đi Chợ Tiện Lợi</Text>
+          <Text style={styles.title}>{t('common.appName')}</Text>
           <Text style={styles.subtitle}>
             {isRegister ? t('auth.register') : t('home.welcome')}
           </Text>
@@ -134,23 +134,6 @@ export function Login({ onLogin }: LoginProps) {
                 {isRegister ? t('auth.register') : t('auth.login')}
               </Text>
             )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Social Login Divider */}
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>hoặc tiếp tục với</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Social Buttons */}
-        <View style={styles.socialButtons}>
-          <TouchableOpacity style={styles.socialButton}>
-            <Text style={styles.socialButtonText}>🔍 Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
-            <Text style={styles.socialButtonText}>🍎 Apple</Text>
           </TouchableOpacity>
         </View>
 

@@ -26,7 +26,7 @@ export function Statistics() {
                 adminService.getAllUsers(),
                 adminService.getAllCategories(),
                 adminService.getAllUnits(),
-                foodService.getFoodLogs()
+                adminService.getFoodLogs()
             ]);
 
             setStats({

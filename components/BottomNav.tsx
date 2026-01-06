@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 interface BottomNavProps {
   activeTab: string;
@@ -6,12 +7,13 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+  const { t } = useTranslation();
   const tabs = [
-    { id: 'home', label: 'Trang chủ', icon: '🏠' },
-    { id: 'fridge', label: 'Tủ lạnh', icon: '❄️' },
-    { id: 'shopping', label: 'Mua sắm', icon: '🛒' },
-    { id: 'meals', label: 'Thực đơn', icon: '📅' },
-    { id: 'profile', label: 'Cá nhân', icon: '👤' },
+    { id: 'home', label: t('navigation.home'), icon: '🏠' },
+    { id: 'fridge', label: t('navigation.fridge'), icon: '❄️' },
+    { id: 'shopping', label: t('navigation.shopping'), icon: '🛒' },
+    { id: 'meals', label: t('navigation.meals'), icon: '📅' },
+    { id: 'profile', label: t('navigation.profile'), icon: '👤' },
   ];
 
   return (

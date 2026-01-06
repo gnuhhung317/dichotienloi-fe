@@ -189,7 +189,7 @@ export function Home({ onNavigate }: { onNavigate: (screen: string) => void }) {
                   <View style={styles.alertItems}>
                     {expiringItems.map(item => {
                       const days = fridgeService.calculateDaysUntilExpiry(item.expiredAt);
-                      const label = days < 0 ? 'Đã hết hạn' : days === 0 ? 'Hết hạn hôm nay' : `${days} ngày nữa`;
+                      const label = days < 0 ? t('common.expired') : days === 0 ? t('common.expiringToday') : `${days} ${t('common.days')}`;
                       const foodName = typeof item.foodId === 'string' ? 'Món ăn' : item.foodId.name;
                       return (
                         <View key={item._id} style={styles.alertItem}>

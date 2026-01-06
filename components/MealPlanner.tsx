@@ -119,7 +119,7 @@ export function MealPlanner() {
     return (
       <View style={styles.container}>
         <View style={styles.cookbookHeader}>
-          <Text style={styles.cookbookTitle}>Thực đơn & Sổ tay</Text>
+          <Text style={styles.cookbookTitle}>{t('meal.mealAndCookbook')}</Text>
         </View>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
           <Ionicons name="people-outline" size={64} color="#D1D5DB" />
@@ -144,7 +144,7 @@ export function MealPlanner() {
               <Ionicons name="chevron-back" size={20} color="#4B5563" />
             </TouchableOpacity>
             <Text style={styles.weekTitle}>
-              {currentWeek === 0 ? 'Tuần này' : `Tuần ${currentWeek > 0 ? '+' + currentWeek : currentWeek}`}
+              {currentWeek === 0 ? t('common.thisWeek') : `${t('common.week')} ${currentWeek > 0 ? '+' + currentWeek : currentWeek}`}
               <Text style={styles.weekDateRange}>
                 {` (${getWeekRange().startOfWeek.getDate()}/${getWeekRange().startOfWeek.getMonth() + 1} - ${getWeekRange().endOfWeek.getDate()}/${getWeekRange().endOfWeek.getMonth() + 1})`}
               </Text>
@@ -166,14 +166,14 @@ export function MealPlanner() {
               style={[styles.segment, activeTab === 'plan' && styles.segmentActive]}
             >
               <Ionicons name="calendar-outline" size={16} color={activeTab === 'plan' ? '#16A34A' : '#6B7280'} />
-              <Text style={[styles.segmentText, activeTab === 'plan' && styles.segmentTextActive]}>Lịch ăn</Text>
+              <Text style={[styles.segmentText, activeTab === 'plan' && styles.segmentTextActive]}>{t('meal.mealPlan')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setActiveTab('cookbook')}
               style={[styles.segment, activeTab === 'cookbook' && styles.segmentActive]}
             >
               <Ionicons name="book-outline" size={16} color={activeTab === 'cookbook' ? '#16A34A' : '#6B7280'} />
-              <Text style={[styles.segmentText, activeTab === 'cookbook' && styles.segmentTextActive]}>Sổ tay</Text>
+              <Text style={[styles.segmentText, activeTab === 'cookbook' && styles.segmentTextActive]}>{t('meal.cookbook')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setActiveTab('suggest')}

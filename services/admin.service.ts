@@ -1,6 +1,6 @@
 import api from '../lib/api';
 import { User } from './auth.service';
-import { Category, Unit } from './food.service';
+import { Category, Unit, FoodLog } from './food.service';
 
 export interface CreateUserDTO {
     email: string;
@@ -20,6 +20,11 @@ class AdminService {
     // --- User Management ---
     async getAllUsers(): Promise<User[]> {
         const response = await api.get('/admin/users');
+        return response.data;
+    }
+
+    async getFoodLogs(): Promise<FoodLog[]> {
+        const response = await api.get('/admin/food/log');
         return response.data;
     }
 

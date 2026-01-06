@@ -338,24 +338,12 @@ export function Profile({ onLogout }: ProfileProps) {
                 </View>
               </View>
             </View>
-
-            <View style={styles.notificationRow}>
-              <View style={styles.notificationInfo}>
-                <Text style={styles.notificationTitle}>{t('suggestion.recipeIdeas')}</Text>
-                <Text style={styles.notificationSubtitle}>{t('suggestion.recipeIdeas')}</Text>
-              </View>
-              <View style={styles.switch}>
-                <View style={styles.switchOff}>
-                  <View style={styles.switchThumb} />
-                </View>
-              </View>
-            </View>
           </View>
         </View>
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Đi Chợ Tiện Lợi v{t('profile.version')} 1.0.0</Text>
+          <Text style={styles.appInfoText}>{t('common.appName')} v{t('profile.version')} 1.0.0</Text>
           <Text style={styles.appInfoText}>© 2026 Smart Grocery Manager</Text>
         </View>
 

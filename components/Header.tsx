@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 interface HeaderProps {
   syncStatus: 'synced' | 'syncing' | 'offline';
@@ -6,11 +7,12 @@ interface HeaderProps {
 }
 
 export function Header({ syncStatus, groupName }: HeaderProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <View>
-          <Text style={styles.title}>Đi Chợ Tiện Lợi</Text>
+          <Text style={styles.title}>{t('common.appName')}</Text>
           {groupName && <Text style={styles.subtitle}>{groupName}</Text>}
         </View>
         <View style={styles.rightSection}>

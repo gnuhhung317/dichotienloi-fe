@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { foodService } from '../services/food.service';
 import { GroupMember } from '../services/group.service';
 import { API_CONFIG } from '../config/app.config';
@@ -19,9 +20,11 @@ export function AddToShoppingListModal({
   onSubmit,
   groupMembers,
 }: AddToShoppingListModalProps) {
+  const { t } = useTranslation();
   const [quantity, setQuantity] = useState('1');
   const [itemName, setItemName] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showUnitSuggestions, setShowUnitSuggestions] = useState(false); // Added state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [foods, setFoods] = useState<{ name: string; _id: string; unit?: string }[]>([]); // Added unit to state
   const [categories, setCategories] = useState<string[]>([]);
@@ -182,7 +185,7 @@ export function AddToShoppingListModal({
         <View style={styles.modal}>
           {/* Header */}
           <View style={styles.header}>
-          <Text style={styles.title}>{t('modal.addToShoppingList')}</Text>
+            <Text style={styles.title}>{t('modal.addToShoppingList')}</Text>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -289,26 +292,47 @@ export function AddToShoppingListModal({
                       </TouchableOpacity>
                     </View>
 
-                    {/* Unit Picker */}
-                    <View style={styles.unitPicker}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {isNewItem ? (
-                          units.map(u => (
-                            <TouchableOpacity
-                              key={u}
-                              style={[styles.unitBtn, selectedUnit === u && styles.unitBtnActive]}
-                              onPress={() => setSelectedUnit(u)}
-                              disabled={isSubmitting}
-                            >
-                              <Text style={[styles.unitText, selectedUnit === u && styles.unitTextActive]}>{u}</Text>
-                            </TouchableOpacity>
-                          ))
-                        ) : (
-                          <View style={[styles.unitBtn, styles.unitBtnActive]}>
-                            <Text style={[styles.unitText, styles.unitTextActive]}>{selectedUnit}</Text>
-                          </View>
-                        )}
-                      </ScrollView>
+                    {/* Unit Autocomplete */}
+                    <View style={styles.unitPickerContainer}>
+                      <TextInput
+                        style={[styles.unitInput, styles.input]}
+                        value={selectedUnit}
+                        onChangeText={(text) => {
+                          setSelectedUnit(text);
+                          setShowUnitSuggestions(true);
+                        }}
+                        onFocus={() => setShowUnitSuggestions(true)}
+                        placeholder="Đơn vị"
+                        placeholderTextColor="#9CA3AF"
+                        editable={!isSubmitting}
+                      />
+                      {showUnitSuggestions && (
+                        <View style={styles.unitSuggestions}>
+                          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={{ maxHeight: 150 }}>
+                            {units
+                              .filter(u => u.toLowerCase().includes(selectedUnit.toLowerCase()))
+                              .map(u => (
+                                <TouchableOpacity
+                                  key={u}
+                                  style={styles.suggestionItem}
+                                  onPress={() => {
+                                    setSelectedUnit(u);
+                                    setShowUnitSuggestions(false);
+                                  }}
+                                >
+                                  <Text style={styles.suggestionText}>{u}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            {units.filter(u => u.toLowerCase().includes(selectedUnit.toLowerCase())).length === 0 && (
+                              <View style={styles.suggestionItem}>
+                                <Text style={[styles.suggestionText, { color: '#9CA3AF', fontStyle: 'italic' }]}>
+                                  Không tìm thấy (hệ thống sẽ báo lỗi nếu không tồn tại)
+                                </Text>
+                              </View>
+                            )}
+                          </ScrollView>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -384,7 +408,7 @@ export function AddToShoppingListModal({
                 <Text style={styles.submitBtnText}>Thêm vào danh sách</Text>
               )}
             </TouchableOpacity>
-          </View>{t('modal.addToShoppingList')}
+          </View>
         </View>
       </View>
     </Modal>
@@ -621,6 +645,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  unitPickerContainer: {
+    flex: 1,
+    position: 'relative',
+    zIndex: 10, // Ensure suggestions float above
+  },
+  unitInput: {
+    textAlign: 'center',
+  },
+  unitSuggestions: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    marginTop: 4,
+    zIndex: 2000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  // Previous styles kept or overridden
   avatarChip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -24,7 +24,19 @@
     "sortBy": "Sắp xếp theo",
     "all": "Tất cả",
     "suggest": "Gợi ý",
-    "suggestion": "Gợi ý"
+    "suggestion": "Gợi ý",
+    "today": "Hôm nay",
+    "thisWeek": "Tuần này",
+    "expired": "Đã hết hạn",
+    "expiringToday": "Hết hạn hôm nay",
+    "appName": "Đi Chợ Tiện Lợi"
+  },
+  "navigation": {
+    "home": "Trang chủ",
+    "fridge": "Tủ lạnh",
+    "shopping": "Mua sắm",
+    "meals": "Thực đơn",
+    "profile": "Cá nhân"
   },
   "auth": {
     "login": "Đăng nhập",
@@ -156,6 +168,10 @@
   },
   "meal": {
     "title": "Kế hoạch bữa ăn",
+    "mealPlan": "Lịch ăn",
+    "cookbook": "Sổ tay",
+    "mealAndCookbook": "Thực đơn & Sổ tay",
+    "deleteMeal": "Xóa bữa ăn",
     "addMeal": "Thêm bữa ăn",
     "editMeal": "Sửa bữa ăn",
     "breakfast": "Bữa sáng",
